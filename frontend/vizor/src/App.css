@@ -1,3 +1,7 @@
+* {
+	font-family: 'Poppins', sans-serif;
+}
+
 .App {
   text-align: center;
 }
@@ -35,4 +39,86 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+form {
+  /* Add additional styling for your form if needed */
+  /* For example: */
+  background-color: #f9f9f9;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
+}
+
+.btn {
+	display: inline-block;
+	text-decoration: none;
+	color: #fff;
+	border: 1px solid #1e1ca0;
+  border-radius: 5px;
+	padding: 12px 34px;
+	font-size: 13px;
+	background: #1e1ca0;
+	position: relative;
+	margin-bottom: 10px;
+	cursor: pointer;
+}
+
+.btn:hover {
+	transition: 0.5s;
+	color: #1e1ca0;
+	background: #fff;
+}
+
+.red-btn {
+	color: #ff0000;
+	border: 1px solid #ff0000;
+	background: #fff;
+}
+
+.red-btn:hover {
+	color: #fff;
+	background: #ff0000;
+}
+
+ul {
+  list-style: none;
+}
+
+.modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(90, 90, 90, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fff;
+  width: 80%;
+  height: 80%;
+  max-width: 800px;
+  max-height: 800px;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 10px;
 }
