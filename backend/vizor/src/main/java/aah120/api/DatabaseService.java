@@ -13,7 +13,9 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
+import aah120.dto.Column;
 import aah120.dto.DatabaseDetails;
+import aah120.dto.ForeignKey;
 import aah120.dto.QueryRequest;
 import aah120.dto.TableMetadata;
 
@@ -39,36 +41,50 @@ public class DatabaseService {
 
         try (Connection connection = connectionManager.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-            ResultSet tables = metaData.getTables(null, "public", "%", new String[] { "TABLE" });
-            List<TableMetadata> tablesAndColumnsList = new ArrayList<>();
+            ResultSet tablesRs = metaData.getTables(null, "public", "%", new String[] { "TABLE" });
+            List<TableMetadata> tables = new ArrayList<>();
 
-            while (tables.next()) {
-                String tableName = tables.getString("TABLE_NAME");
-                ResultSet columns = metaData.getColumns(null, "public", tableName, "%");
-                List<String> columnNames = new ArrayList<>();
-                List<String> columnTypes = new ArrayList<>();
-                while (columns.next()) {
-                    columnNames.add(columns.getString("COLUMN_NAME"));
-                    columnTypes.add(columns.getString("TYPE_NAME"));
+            while (tablesRs.next()) {
+                String tableName = tablesRs.getString("TABLE_NAME");
+
+                ResultSet primaryKeysRs = metaData.getPrimaryKeys(null, "public", tableName);
+                List<String> primaryKeys = new ArrayList<>();
+                while (primaryKeysRs.next()) {
+                    primaryKeys.add(primaryKeysRs.getString("COLUMN_NAME"));
                 }
 
-                ResultSet primaryKeys = metaData.getPrimaryKeys(null, "public", tableName);
-                List<String> primaryKeyNames = new ArrayList<>();
-                while (primaryKeys.next()) {
-                    primaryKeyNames.add(primaryKeys.getString("COLUMN_NAME"));
+                ResultSet foreignKeysRs = metaData.getImportedKeys(null, "public", tableName);
+                List<ForeignKey> foreignKeys = new ArrayList<>();
+                while (foreignKeysRs.next()) {
+                    String parentTable = foreignKeysRs.getString("PKTABLE_NAME");
+                    String parentColumn = foreignKeysRs.getString("PKCOLUMN_NAME");
+                    String childTable = foreignKeysRs.getString("FKTABLE_NAME");
+                    String childColumn = foreignKeysRs.getString("FKCOLUMN_NAME");
+                    foreignKeys.add(new ForeignKey(parentTable, parentColumn, childTable, childColumn));
                 }
 
-                ResultSet foreignKeys = metaData.getImportedKeys(null, "public", tableName);
-                List<String> foreignKeyNames = new ArrayList<>();
-                while (foreignKeys.next()) {
-                    foreignKeyNames.add(foreignKeys.getString("FKCOLUMN_NAME"));
+                ResultSet columnsRs = metaData.getColumns(null, "public", tableName, "%");
+                List<Column> columns = new ArrayList<>();
+                while (columnsRs.next()) {
+                    String colName = columnsRs.getString("COLUMN_NAME");
+                    String colType = columnsRs.getString("TYPE_NAME");
+                    Column col = new Column(colName, colType);
+                    
+                    if (primaryKeys.contains(colName)) {
+                        col.setPrimaryKey(true);
+                    }
+                    
+                    if (foreignKeys.stream().anyMatch(fk -> fk.getChildColumn().equals(colName))) {
+                        col.setForeignKey(true);
+                    }
+                    
+                    columns.add(col);
                 }
 
-                tablesAndColumnsList
-                        .add(new TableMetadata(tableName, columnNames, columnTypes, primaryKeyNames, foreignKeyNames));
+                tables.add(new TableMetadata(tableName, columns, primaryKeys, foreignKeys));
             }
 
-            return tablesAndColumnsList;
+            return tables;
         } catch (SQLException e) {
             e.printStackTrace();
             throw e;

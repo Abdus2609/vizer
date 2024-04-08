@@ -120,10 +120,10 @@ public class DatabaseController {
 	}
 
 	@GetMapping("tables")
-	public ResponseEntity<List<TableMetadata>> getTablesAndColumns() {
+	public ResponseEntity<List<TableMetadata>> getTables() {
 		try {
-			List<TableMetadata> tablesAndColumnsList = databaseService.getTableMetadata();
-			return ResponseEntity.ok(tablesAndColumnsList);
+			List<TableMetadata> tables = databaseService.getTableMetadata();
+			return ResponseEntity.ok(tables);
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -138,7 +138,6 @@ public class DatabaseController {
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-
 		}
 	}
 

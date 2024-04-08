@@ -28,12 +28,4 @@ public class QueryRequest {
     public List<String> getColumnNames() {
         return columnNames;
     }
-
-    @Override
-    public String toString() {
-        return "QueryRequest{" +
-                "tableName='" + tableNames + '\'' +
-                ", columnNames=" + columnNames +
-                '}';
-    }
 }

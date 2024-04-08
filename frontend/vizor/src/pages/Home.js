@@ -29,7 +29,7 @@ function Home() {
 
       const data = await response.json();
       setTableMetadata(data);
-      // console.log(data);
+      console.log(data);
     }
 
     fetchTableMetadata();
@@ -94,6 +94,10 @@ function Home() {
     setSelectedChartType('');
   }
 
+  const fkString = (fk) => {
+    return `${fk.childColumn} (${fk.parentTable}.${fk.parentColumn})`
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", paddingLeft: "50px",}}>
       <div style={{ width: "25vw", overflowY: "auto", borderRight: "5px solid #ccc" }}>
@@ -102,19 +106,19 @@ function Home() {
           {tableMetadata.map((table) => (
             <div key={table.tableName}>
               <h2>{table.tableName}</h2>
-              <p><strong>Primary Keys:</strong> {table.primaryKeys.join(', ')}</p>
-              <p><strong>Foreign Keys:</strong> {table.foreignKeys.join(', ')}</p>
+              <p><strong>PKs:</strong> {table.primaryKeys.join(', ')}</p>
+              <p><strong>FKs:</strong> {table.foreignKeys.map(fkString).join(', ')}</p>
               <ul>
-                {table.columnNames.map((column, index) => (
+                {table.columns.map((column, index) => (
                   <li style={{ paddingBottom: "5px" }} key={column}>
                     <input
                       style={{ marginRight: "5px" }}
                       type="checkbox"
-                      value={column}
-                      checked={selectedColumns.find(col => col.column === `${table.tableName}.${column}`)}
-                      onChange={() => handleCheckboxChange(`${table.tableName}.${column}`, table.columnTypes[index])}
+                      value={column.name}
+                      checked={selectedColumns.find(col => col.column === `${table.tableName}.${column.name}`)}
+                      onChange={() => handleCheckboxChange(`${table.tableName}.${column.name}`, column.type)}
                     />
-                    {column + ' (' + table.columnTypes[index] + ')'}
+                    {column.name + ' (' + column.type + ')'}
                   </li>
                 ))}
               </ul>
