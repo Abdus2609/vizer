@@ -4,6 +4,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
+import javax.management.Query;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import aah120.dto.DatabaseDetails;
 import aah120.dto.QueryRequest;
+import aah120.dto.QueryResponse;
 import aah120.dto.TableMetadata;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,10 +49,11 @@ public class DatabaseController {
 
 		try {
 			databaseService.setConnectionDetails(databaseDetails);
-			return new ResponseEntity<>("{\"message\": \"Received database details successfully\"}", HttpStatus.OK);
+			return ResponseEntity.ok("{\"message\": \"Received database details successfully\"}");
 		} catch (Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<>("{\"message\": \"Failed to connect to the database\"}", HttpStatus.INTERNAL_SERVER_ERROR);
+			// return new ResponseEntity<>("{\"message\": \"Failed to connect to the database\"}", HttpStatus.INTERNAL_SERVER_ERROR);
+			return ResponseEntity.internalServerError().body("{\"message\": \"Failed to connect to the database\"}");
 		}
 
 		// try {
@@ -122,7 +126,7 @@ public class DatabaseController {
 	@GetMapping("tables")
 	public ResponseEntity<List<TableMetadata>> getTables() {
 		try {
-			List<TableMetadata> tables = databaseService.getTableMetadata();
+			List<TableMetadata> tables = databaseService.fetchTableMetadata();
 			return ResponseEntity.ok(tables);
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -139,6 +143,12 @@ public class DatabaseController {
 			e.printStackTrace();
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+
+	@PostMapping("visualise")
+	public ResponseEntity<QueryResponse> getVisualisations(@RequestBody QueryRequest query) throws SQLException {
+		QueryResponse response = databaseService.recommendVisualisations(query);
+		return ResponseEntity.ok(response);
 	}
 
 	// // SQL sample

@@ -4,12 +4,14 @@ public class Column {
     
     private final String name;
     private final String type;
+    private final String tableName;
     private boolean isPrimaryKey;
     private boolean isForeignKey;
 
-    public Column(String name, String type) {
+    public Column(String name, String type, String tableName) {
         this.name = name;
         this.type = type;
+        this.tableName = tableName;
     }
 
     public String getName() {
@@ -18,6 +20,10 @@ public class Column {
 
     public String getType() {
         return type;
+    }
+
+    public String getTableName() {
+        return tableName;
     }
 
     public boolean isPrimaryKey() {

@@ -10,7 +10,7 @@ import lombok.Data;
 public class QueryRequest {
     
     private final List<String> tableNames;
-    private final List<String> columnNames;
+    private final List<String> fullColumnNames;
 
     @JsonCreator
     public QueryRequest(
@@ -18,14 +18,14 @@ public class QueryRequest {
         @JsonProperty("columns") List<String> columnNames
     ) {
         this.tableNames = tableNames;
-        this.columnNames = columnNames;
+        this.fullColumnNames = columnNames;
     }
 
     public List<String> getTableNames() {
         return tableNames;
     }
 
-    public List<String> getColumnNames() {
-        return columnNames;
+    public List<String> getFullColumnNames() {
+        return fullColumnNames;
     }
 }
