@@ -19,9 +19,14 @@ import aah120.dto.ForeignKey;
 import aah120.dto.QueryRequest;
 import aah120.dto.QueryResponse;
 import aah120.dto.TableMetadata;
+import aah120.dto.VisualisationOption;
 
 @Service
 public class DatabaseService {
+
+    List<String> NUM_TYPES = List.of("numeric", "int2", "int4", "int8", "float4", "float8");
+    List<String> TEMP_TYPES = List.of("date", "time", "timestamp");
+    List<String> LEX_TYPES = List.of("varchar", "text", "char");
 
     private final DatabaseConnectionManager connectionManager;
     private final List<TableMetadata> databaseMetadata;
@@ -109,7 +114,7 @@ public class DatabaseService {
         List<TableMetadata> tables = new ArrayList<>();
         List<Column> columns = new ArrayList<>();
         String pattern = null; // one of basic, weak, one-many, or many-many
-        List<String> vizOptions = new ArrayList<>(); // one of graph choices
+        List<VisualisationOption> visOptions = new ArrayList<>(); // one of graph choices
 
         for (TableMetadata table : databaseMetadata) {
             if (tableNames.contains(table.getTableName())) {
@@ -127,31 +132,171 @@ public class DatabaseService {
         int numFkWithPk = (int) columns.stream().filter(col -> col.isForeignKey()).count();
         int numAtts = columns.size() - numPks - numFks;
 
+        List<Column> chosenPks = columns.stream().filter(Column::isPrimaryKey).toList();
+        List<Column> chosenFks = columns.stream().filter(col -> col.isForeignKey()).toList();
+        List<Column> chosenAtts = columns.stream().filter(col -> !chosenPks.contains(col) && !chosenFks.contains(col))
+                .toList();
+
+        List<String> chosenPkNames = chosenPks.stream().map(Column::getName).toList();
+        List<String> chosenFkNames = chosenFks.stream().map(Column::getName).toList();
+        List<String> chosenAttNames = chosenAtts.stream().map(Column::getName).toList();
+
+        List<String> chosenPkTypes = chosenPks.stream().map(Column::getType).toList();
+        List<String> chosenFkTypes = chosenFks.stream().map(Column::getType).toList();
+        List<String> chosenAttTypes = chosenAtts.stream().map(Column::getType).toList();
+
         if (numAtts == 0) {
             pattern = "none";
         } else if (numPks == 0 && numFks == 0) {
             pattern = "none";
         } else if (isBasicEntity(numPks, numFks, numFkWithPk, tables, columns)) {
             pattern = "basic";
+            Column key = numPks == 0 ? chosenFks.get(0) : chosenPks.get(0);
+            if (bar(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("bar", List.of(key.getName()), chosenAttNames));
+            }
+            if (calendar(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("calendar", List.of(key.getName()), chosenAttNames));
+            }
+            if (scatter(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("scatter", List.of(key.getName()), chosenAttNames));
+            }
+            if (bubble(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("bubble", List.of(key.getName()), chosenAttNames));
+            }
+            if (chloroplethMap(key, chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("chloropleth", List.of(key.getName()), chosenAttNames));
+            }
+            if (wordCloud(key, chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("word-cloud", List.of(key.getName()), chosenAttNames));
+            }
         } else if (isWeakEntity(numPks, numFks, numFkWithPk, tables, columns)) {
             pattern = "weak";
+            List<Column> keys = new ArrayList<>(chosenPks);
+            keys.addAll(chosenFks);
+            List<String> keyNames = keys.stream().map(Column::getName).toList();
+            if (line(keys, chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("line", keyNames, chosenAttNames));
+            }
+            if (stackedBar(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("stacked-bar", keyNames, chosenAttNames));
+            }
+            if (groupedBar(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("grouped-bar", keyNames, chosenAttNames));
+            }
+            if (spider(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("spider", keyNames, chosenAttNames));
+            }
         } else if (isOneManyRelationship(numPks, numFks, numFkWithPk, tables, columns)) {
             pattern = "one-many";
+            List<Column> keys = new ArrayList<>(chosenPks);
+            keys.addAll(chosenFks);
+            List<String> keyNames = keys.stream().map(Column::getName).toList();
+            if (treemap(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("treemap", keyNames, chosenAttNames));
+            }
+            if (hierarchyTree(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("hierarchy-tree", keyNames, chosenAttNames));
+            }
+            if (circlePacking(chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("circle-packing", keyNames, chosenAttNames));
+            }
         } else if (isManyManyRelationship(numPks, numFks, numFkWithPk, tables, columns)) {
             if (isReflexive(numPks, numFks, numFkWithPk, tables, columns)) {
                 pattern = "reflexive";
+                if (chord(chosenAttTypes)) {
+                    visOptions.add(new VisualisationOption("chord", chosenPkNames, chosenAttNames));
+                }
             } else {
                 pattern = "many-many";
+                if (sankey(chosenAttTypes)) {
+                    visOptions.add(new VisualisationOption("sankey", chosenPkNames, chosenAttNames));
+                }
             }
         } else {
             pattern = "none";
         }
 
-        System.out.println(pattern);
-
         // build and execute query to get data
 
-        return new QueryResponse(pattern, vizOptions, new ArrayList<>());
+        return new QueryResponse(pattern, visOptions, new ArrayList<>());
+    }
+
+    private boolean isScalarType(String type) {
+        return NUM_TYPES.contains(type) || TEMP_TYPES.contains(type);
+    }
+
+    private boolean bar(List<String> attTypes) {
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
+    }
+
+    private boolean calendar(List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(t -> TEMP_TYPES.contains(t));
+    }
+
+    private boolean wordCloud(Column key, List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.size() <= 2 && LEX_TYPES.contains(key.getType())
+                && attTypes.stream().anyMatch(this::isScalarType);
+    }
+
+    private boolean scatter(List<String> attTypes) {
+        return attTypes.size() >= 2 && attTypes.size() <= 3
+                && attTypes.stream().filter(this::isScalarType).count() >= 2;
+    }
+
+    private boolean bubble(List<String> attTypes) {
+        return attTypes.size() >= 3 && attTypes.size() <= 4
+                && attTypes.stream().filter(this::isScalarType).count() >= 3;
+    }
+
+    private boolean chloroplethMap(Column key, List<String> attTypes) {
+        return attTypes.size() == 1;
+    }
+
+    private boolean line(List<Column> keys, List<String> attTypes) {
+        if (attTypes.size() == 0 || attTypes.size() > 2) {
+            return false;
+        }
+
+        List<Column> k2 = keys.stream().filter(k -> !k.isPrimaryKey()).toList();
+
+        if (k2.stream().anyMatch(k -> !isScalarType(k.getType()))) {
+            return false;
+        }
+
+        return attTypes.stream().allMatch(this::isScalarType);
+    }
+
+    private boolean stackedBar(List<String> attTypes) {
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
+    }
+
+    private boolean groupedBar(List<String> attTypes) {
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
+    }
+
+    private boolean spider(List<String> attTypes) {
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
+    }
+
+    private boolean treemap(List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.stream().anyMatch(this::isScalarType);
+    }
+
+    private boolean hierarchyTree(List<String> attTypes) {
+        return attTypes.size() <= 1 && LEX_TYPES.contains(attTypes.get(0));
+    }
+
+    private boolean circlePacking(List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
+    }
+
+    private boolean sankey(List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
+    }
+
+    private boolean chord(List<String> attTypes) {
+        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
     }
 
     private boolean isBasicEntity(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
@@ -191,7 +336,8 @@ public class DatabaseService {
             return false;
         }
 
-        // the fks that are also pks NEED to be subset of total pks otherwise reflexive many-many
+        // the fks that are also pks NEED to be subset of total pks otherwise reflexive
+        // many-many
         if (bothPkAndFk.size() == table.getPrimaryKeys().size()) {
             return false;
         }

@@ -1,6 +1,8 @@
 package aah120.api;
 
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import aah120.dto.Column;
 
 // import io.github.MigadaTang.ER;
 // import io.github.MigadaTang.Entity;

@@ -6,10 +6,10 @@ import java.util.Map;
 public class QueryResponse {
     
     private final String pattern;
-    private final List<String> visualisations;
+    private final List<VisualisationOption> visualisations;
     private final List<Map<String, Object>> data;
 
-    public QueryResponse(String pattern, List<String> visualisations, List<Map<String, Object>> data) {
+    public QueryResponse(String pattern, List<VisualisationOption> visualisations, List<Map<String, Object>> data) {
         this.pattern = pattern;
         this.visualisations = visualisations;
         this.data = data;
@@ -19,7 +19,7 @@ public class QueryResponse {
         return pattern;
     }
 
-    public List<String> getVisualisations() {
+    public List<VisualisationOption> getVisualisations() {
         return visualisations;
     }
 
