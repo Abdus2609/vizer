@@ -3,13 +3,13 @@ package aah120.dto;
 import java.util.List;
 import java.util.Map;
 
-public class QueryResponse {
+public class DFQueryResponse {
     
     private final String pattern;
     private final List<VisualisationOption> visualisations;
     private final List<Map<String, Object>> data;
 
-    public QueryResponse(String pattern, List<VisualisationOption> visualisations, List<Map<String, Object>> data) {
+    public DFQueryResponse(String pattern, List<VisualisationOption> visualisations, List<Map<String, Object>> data) {
         this.pattern = pattern;
         this.visualisations = visualisations;
         this.data = data;

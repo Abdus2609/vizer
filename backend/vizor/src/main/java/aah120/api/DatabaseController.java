@@ -1,6 +1,7 @@
 package aah120.api;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.List;
@@ -31,15 +32,17 @@ import aah120.dto.Column;
 // import java.sql.SQLException;
 
 import aah120.dto.DatabaseDetails;
-import aah120.dto.QueryRequest;
-import aah120.dto.QueryResponse;
+import aah120.dto.DFQueryRequest;
+import aah120.dto.DFQueryResponse;
 import aah120.dto.TableMetadata;
+import aah120.dto.VFQueryRequest;
+import aah120.dto.VFQueryResponse;
 
 import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class DatabaseController {
 
 	private final DatabaseService databaseService;
@@ -139,7 +142,7 @@ public class DatabaseController {
 	}
 
 	@PostMapping("query")
-	public ResponseEntity<List<Map<String, Object>>> executeQuery(@RequestBody QueryRequest query) {
+	public ResponseEntity<List<Map<String, Object>>> executeQuery(@RequestBody DFQueryRequest query) {
 		try {
 			List<Map<String, Object>> result = databaseService.executeQuery(query);
 			return ResponseEntity.ok(result);
@@ -149,9 +152,23 @@ public class DatabaseController {
 		}
 	}
 
-	@PostMapping("visualise")
-	public ResponseEntity<QueryResponse> getVisualisations(@RequestBody QueryRequest query) throws SQLException {
-		QueryResponse response = databaseService.recommendVisualisations(query);
+	@PostMapping("df-visualise")
+	public ResponseEntity<DFQueryResponse> getVisualisations(@RequestBody DFQueryRequest query) throws SQLException {
+		DFQueryResponse response = databaseService.recommendVisualisations(query);
+		return ResponseEntity.ok(response);
+	}
+
+	@PostMapping("vf-generate")
+	public ResponseEntity<VFQueryResponse> getColumnOptions(@RequestBody VFQueryRequest request) {
+		VFQueryResponse response = new VFQueryResponse("basic", new ArrayList<>(), new ArrayList<>());
+
+		return ResponseEntity.ok(response);
+	}
+
+	@PostMapping("vf-visualise")
+	public ResponseEntity<List<Map<String, Object>>> postMethodName(@RequestBody DFQueryRequest entity) {
+		List<Map<String, Object>> response = new ArrayList<>();
+
 		return ResponseEntity.ok(response);
 	}
 

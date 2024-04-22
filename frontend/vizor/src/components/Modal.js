@@ -1,8 +1,8 @@
 import React from 'react';
-import BarChart from './charts/BarChart';
-import PieChart from './charts/PieChart';
-import ScatterChart from './charts/ScatterDiagram';
-import MapClusteredPoints from './charts/MapClusteredPoints';
+import Bar from './charts/basic/Bar';
+import PieChart5 from './charts/PieChart5';
+import Scatter from './charts/basic/Scatter';
+import Choropleth5 from './charts/basic/Choropleth5';
 
 function Modal(props) {
 
@@ -42,16 +42,16 @@ function Modal(props) {
   console.log(fieldTypes);
   switch (type) {
     case "Bar Chart":
-      chart = <BarChart data={chartData} categoryField={fieldTypes.categorical[0]} valueField={fieldTypes.numerical[0]} />;
+      chart = <Bar data={chartData} categoryField={fieldTypes.categorical[0]} valueField={fieldTypes.numerical[0]} />;
       break;
     case "Pie Chart":
-      chart = <PieChart data={chartData} categoryField={fieldTypes.categorical[0]} valueField={fieldTypes.numerical[0]} />;
+      chart = <PieChart5 data={chartData} categoryField={fieldTypes.categorical[0]} valueField={fieldTypes.numerical[0]} />;
       break;
     case "Scatter Chart":
-      chart = <ScatterChart data={chartData} valueXField={fieldTypes.numerical[0]} valueYField={fieldTypes.numerical[1]} />;
+      chart = <Scatter data={chartData} valueXField={fieldTypes.numerical[0]} valueYField={fieldTypes.numerical[1]} />;
       break;
     case "Map With Clustered Points":
-      chart = <MapClusteredPoints data={chartData} labelField={fieldTypes.categorical[0]} />;
+      chart = <Choropleth5 data={chartData} labelField={fieldTypes.categorical[0]} />;
     default:
       break;
   }

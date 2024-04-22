@@ -4,7 +4,7 @@ import * as am5map from '@amcharts/amcharts5/map';
 import am5geodata_worldLow from '@amcharts/amcharts5-geodata/worldLow';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 
-function MapClusteredPoints({ data, labelField }) {
+function Choropleth5({ data, labelField }) {
 
     useEffect(() => {
         
@@ -117,4 +117,4 @@ function MapClusteredPoints({ data, labelField }) {
     );
 }
 
-export default MapClusteredPoints;
+export default Choropleth5;

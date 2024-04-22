@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 import aah120.dto.Column;
 import aah120.dto.DatabaseDetails;
 import aah120.dto.ForeignKey;
-import aah120.dto.QueryRequest;
-import aah120.dto.QueryResponse;
+import aah120.dto.DFQueryRequest;
+import aah120.dto.DFQueryResponse;
 import aah120.dto.TableMetadata;
 import aah120.dto.VisualisationOption;
 
@@ -105,7 +105,7 @@ public class DatabaseService {
         }
     }
 
-    public QueryResponse recommendVisualisations(QueryRequest request) {
+    public DFQueryResponse recommendVisualisations(DFQueryRequest request) throws SQLException {
 
         List<String> tableNames = request.getTableNames();
         List<String> fullColumnNames = request.getFullColumnNames();
@@ -218,8 +218,53 @@ public class DatabaseService {
         }
 
         // build and execute query to get data
+        List<Map<String, Object>> data = new ArrayList<>();
+        try (Connection connection = connectionManager.getConnection()) {
+            
+            StringBuilder sb = new StringBuilder();
+            
+            sb.append("SELECT ");
+            
+            for (int i = 0; i < fullColumnNames.size(); i++) {
+                sb.append(fullColumnNames.get(i) + " AS " + columnNames.get(i));
+                if (i == fullColumnNames.size() - 1) {
+                    sb.append(" ");
+                } else {
+                    sb.append(", ");
+                }
+            }
+            
+            sb.append("FROM ");
+            sb.append(String.join(", ", tableNames));
+            sb.append(" WHERE ");
 
-        return new QueryResponse(pattern, visOptions, new ArrayList<>());
+            sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+            sb.append(";");
+
+            String queryStr = sb.toString();
+            System.out.println(queryStr);
+
+            PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            
+            while (resultSet.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    row.put(metaData.getColumnName(i), resultSet.getObject(i));
+                }
+
+                data.add(row);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw e;
+        }
+
+        return new DFQueryResponse(pattern, visOptions, data);
     }
 
     private boolean isScalarType(String type) {
@@ -405,7 +450,7 @@ public class DatabaseService {
         return table.getForeignKeys().stream().map(ForeignKey::getParentTable).distinct().count() == 1;
     }
 
-    public List<Map<String, Object>> executeQuery(QueryRequest query) throws SQLException {
+    public List<Map<String, Object>> executeQuery(DFQueryRequest query) throws SQLException {
 
         try (Connection connection = connectionManager.getConnection()) {
 

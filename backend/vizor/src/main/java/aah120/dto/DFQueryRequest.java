@@ -7,16 +7,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class QueryRequest {
-    
+public class DFQueryRequest {
+
     private final List<String> tableNames;
     private final List<String> fullColumnNames;
 
     @JsonCreator
-    public QueryRequest(
-        @JsonProperty("tables") List<String> tableNames,
-        @JsonProperty("columns") List<String> columnNames
-    ) {
+    public DFQueryRequest(
+            @JsonProperty("tables") List<String> tableNames,
+            @JsonProperty("columns") List<String> columnNames) {
         this.tableNames = tableNames;
         this.fullColumnNames = columnNames;
     }

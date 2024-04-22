@@ -122,3 +122,53 @@ ul {
   padding: 20px;
   border-radius: 10px;
 }
+
+.nav-bar {
+	/* width: 100%;
+	z-index: 998;
+  background-color: #000; */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #333;
+  color: white;
+}
+
+nav img {
+	width: 300px;
+}
+
+.nav-links {
+  display: flex;
+	flex-direction: row;
+	text-align: right;
+  list-style-type: none;
+}
+
+.nav-links li {
+	list-style: none;
+	display: inline-block;
+	padding-right: 20px;
+	position: relative;
+}
+
+.nav-links li a {
+	color: #fff;
+	text-decoration: none;
+	font-size: 13px;
+}
+
+.nav-links li::after {
+	content: '';
+	width: 0%;
+	height: 2px;
+	background: #cab069;
+	display: block;
+	margin: auto;
+	transition: 0.5s;
+}
+
+.nav-links li:hover::after {
+	width: 100%;
+}

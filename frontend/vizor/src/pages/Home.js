@@ -1,22 +1,95 @@
-import Modal from "../components/Modal";
+// import Modal from "../components/Modal";
 import React, { useState, useEffect } from "react";
-import { Table } from 'antd';
+import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal } from 'antd';
 import 'antd/dist/reset.css';
-// import ResultTable from "../components/ResultTable";
+// import NavBar from "../components/Navbar";
+import { Content, Header } from "antd/es/layout/layout";
+import Bar5 from "../components/charts/basic/Bar5";
+import Bar from "../components/charts/basic/Bar";
+import Bubble from "../components/charts/basic/Bubble";
+import Scatter from "../components/charts/basic/Scatter";
+import WordCloud from "../components/charts/basic/WordCloud";
+import Choropleth from "../components/charts/basic/Choropleth";
+// import { ref, getDownloadURL } from "firebase/storage";
+// import { storage } from "../firebaseconfig";
 
 function Home() {
 
-  const chartTypes = ['Bar Chart', 'Pie Chart', 'Scatter Chart', 'Line Chart', 'Map With Clustered Points'];
+  const chartTypes = [
+    {
+      id: "bar",
+      name: "Bar Chart",
+    },
+    {
+      id: "bubble",
+      name: "Bubble Chart"
+    },
+    {
+      id: "calendar",
+      name: "Calendar Chart"
+    },
+    {
+      id: "chloropleth",
+      name: "Chloropleth Map"
+    },
+    {
+      id: "scatter",
+      name: "Scatter Chart"
+    },
+    {
+      id: "word-cloud",
+      name: "Word Cloud"
+    },
+    {
+      id: "line",
+      name: "Line Chart"
+    },
+    {
+      id: "grouped-bar",
+      name: "Grouped Bar Chart"
+    },
+    {
+      id: "stacked-bar",
+      name: "Stacked Bar Chart"
+    },
+    {
+      id: "spider",
+      name: "Spider Chart"
+    },
+    {
+      id: "circle-packing",
+      name: "Circle Packing"
+    },
+    {
+      id: "hierarchy-tree",
+      name: "Hierarchy Tree"
+    },
+    {
+      id: "treemap",
+      name: "Treemap"
+    },
+    {
+      id: "chord",
+      name: "Chord Diagram"
+    },
+    {
+      id: "sankey",
+      name: "Sankey Diagram"
+    }
+  ];
 
   const [tableMetadata, setTableMetadata] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedChartType, setSelectedChartType] = useState('');
+  const [visOptions, setVisOptions] = useState([]);
+  const [pattern, setPattern] = useState('');
+  const [graph, setGraph] = useState(null);
 
   useEffect(() => {
     async function fetchTableMetadata() {
-      const response = await fetch('http://localhost:8080/api/tables/', {
+      const response = await fetch('http://localhost:8080/api/v1/tables/', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -42,10 +115,9 @@ function Home() {
       return;
     }
 
-    if (selectedChartType === '') {
-      alert('Please select a chart type');
-      return;
-    }
+    setPattern('');
+    setVisOptions([]);
+    setChartData([]);
 
     const formData = {
       tables: [],
@@ -59,7 +131,7 @@ function Home() {
       }
     });
 
-    const response = await fetch('http://localhost:8080/api/query/', {
+    const response = await fetch('http://localhost:8080/api/v1/df-visualise/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -72,17 +144,18 @@ function Home() {
     }
 
     const data = await response.json();
-    setChartData(data)
-    setModalVisible(true);
-    // console.log(data);
+    setPattern(data.pattern);
+    setVisOptions(data.visualisations);
+    setChartData(data.data);
+    console.log(data);
   };
 
   const handleCheckboxChange = (column, columnType) => {
     const isSelected = selectedColumns.find(col => col.column === column);
     if (isSelected) {
-        setSelectedColumns(prevSelected => prevSelected.filter(col => col.column !== column));
+      setSelectedColumns(prevSelected => prevSelected.filter(col => col.column !== column));
     } else {
-        setSelectedColumns(prevSelected => [...prevSelected, { column, columnType }]);
+      setSelectedColumns(prevSelected => [...prevSelected, { column, columnType }]);
     }
   };
 
@@ -92,90 +165,311 @@ function Home() {
     setChartData([]);
     setSelectedColumns([]);
     setSelectedChartType('');
+    setPattern('');
+    setVisOptions([]);
+    setGraph(null);
+    setModalVisible(false);
   }
 
-  const fkString = (fk) => {
-    return `${fk.childColumn} (${fk.parentTable}.${fk.parentColumn})`
+  const clearGraph = () => {
+    setGraph(null);
+    setModalVisible(false);
   }
 
-  return (
-    <div style={{ display: "flex", height: "100vh", paddingLeft: "50px",}}>
-      <div style={{ width: "25vw", overflowY: "auto", borderRight: "5px solid #ccc" }}>
-        <h1 style={{ marginTop: "20px" }}>Table Metadata</h1>
-        <ul>
-          {tableMetadata.map((table) => (
-            <div key={table.tableName}>
-              <h2>{table.tableName}</h2>
-              <p><strong>PKs:</strong> {table.primaryKeys.join(', ')}</p>
-              <p><strong>FKs:</strong> {table.foreignKeys.map(fkString).join(', ')}</p>
-              <ul>
-                {table.columns.map((column, index) => (
-                  <li style={{ paddingBottom: "5px" }} key={column}>
-                    <input
-                      style={{ marginRight: "5px" }}
-                      type="checkbox"
-                      value={column.name}
-                      checked={selectedColumns.find(col => col.column === `${table.tableName}.${column.name}`)}
-                      onChange={() => handleCheckboxChange(`${table.tableName}.${column.name}`, column.type)}
-                    />
-                    {column.name + ' (' + column.type + ')'}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </ul>
-      </div>
-      <div style={{ marginRight: "20px", 
-                    paddingLeft: "1%", 
-                    paddingRight: "1%", 
-                    paddingTop: "1%", 
-                    borderRight: "5px solid #ccc", 
-                    display: "flex", 
-                    flexDirection: "column", 
-                    alignItems: "center",
-                    }}>
-          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "20px"}}>
-            <button style={{ marginRight: "5px" }} className="btn" onClick={handleRenderButtonClick}>RENDER</button>
-            <button className="btn red-btn" onClick={clearOutput}>CLEAR</button>
-          </div>
-        <div>
-          <h2>Selected Columns</h2>
-          <ul>
-            {selectedColumns.map((selected, index) => (
-              <li style={{ paddingBottom: "2px" }} key={index}>{selected.column}</li>
-            ))}
-          </ul>
+  const findFkParentColumn = (tableFks, columnName) => {
+
+    var result = "PARENT NOT FOUND";
+
+    tableFks.forEach((fk) => {
+      if (fk.childColumn === columnName) {
+        result = `${fk.parentTable}.${fk.parentColumn}`;
+      }
+    });
+
+    return result;
+  };
+
+  const pages = new Array(3).fill(null).map((_, index) => ({
+    key: index + 1,
+    label: index === 0 ? (<a href="/">CONNECT</a>) : index === 1 ? (<a href="/home">DATA-FIRST</a>) : (<a href="/vizfirst">VIZ-FIRST</a>),
+  }));
+
+  const generateColumn = (table, column) => {
+    const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
+    const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
+    const isLexicalType = ['varchar', 'text', 'char'].includes(column.type);
+    const isPrimaryKey = column.primaryKey;
+    const isForeignKey = column.foreignKey;
+
+    const numIcon = isNumericType && (
+      <Tooltip title="This column has a NUMERIC data type.">
+        <Avatar style={{ backgroundColor: "lightblue" }} size="small">N</Avatar>
+      </Tooltip>
+    );
+
+    const tempIcon = isTemporalType && (
+      <Tooltip title="This column has a TEMPORAL data type.">
+        <Avatar style={{ backgroundColor: "lightgreen" }} size="small">T</Avatar>
+      </Tooltip>
+    );
+
+    const lexIcon = isLexicalType && (
+      <Tooltip title="This column has a LEXICAL data type.">
+        <Avatar style={{ backgroundColor: "lightcoral" }} size="small">L</Avatar>
+      </Tooltip>
+    );
+
+    const pkIcon = isPrimaryKey && (
+      <Tooltip title="This column is part of the table's PRIMARY KEY.">
+        <Avatar style={{ backgroundColor: "navy" }} size="small">PK</Avatar>
+      </Tooltip>
+    );
+
+    const fkIcon = isForeignKey && (
+      <Tooltip title={`This column is a FOREIGN KEY to ${findFkParentColumn(table.foreignKeys, column.name)}`}>
+        <Avatar style={{ backgroundColor: "darkgreen" }} size="small">FK</Avatar>
+      </Tooltip>
+    );
+
+    return (
+      <div style={{
+        display: "flex",
+        paddingBottom: "5px",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}>
+        <Checkbox
+          style={{ paddingBottom: "5px" }}
+          checked={selectedColumns.find(col => col.column === `${table.tableName}.${column.name}`)}
+          onChange={() => handleCheckboxChange(`${table.tableName}.${column.name}`, column.type)}
+        >
+          {column.name}
+        </Checkbox>
+        <div style={{ display: "flex", gap: "5px" }}>
+          {numIcon}
+          {tempIcon}
+          {lexIcon}
+          {pkIcon}
+          {fkIcon}
         </div>
       </div>
-      <div style={{ marginRight: "20px", 
-                    paddingLeft: "1%", 
-                    paddingRight: "1%", 
-                    paddingTop: "1%", 
-                    borderRight: "5px solid #ccc", 
-                    }}>
-          <h1>Visualisation Types</h1>
-          <ul>
-              {chartTypes.map((type) => (
-                <li style={{ paddingBottom: "5px" }} key={type}>
-                  <input
-                    style={{ marginRight: "5px" }}
-                    type="radio"
-                    value={type}
-                    checked={selectedChartType === type}
-                    onChange={() => setSelectedChartType(type)}
-                  />
-                  {type}
-                </li>
-              ))}
-          </ul>
+    );
+  };
+
+  const generatePatternComponent = (pattern) => {
+    const patternTitle = {
+      "basic": "Basic Entity",
+      "weak": "Weak Entity",
+      "one-many": "One-Many Relationship",
+      "many-many": "Many-Many Relationship",
+      "reflexive": "Reflexive Many-Many Relationship",
+      "none": "No Pattern Detected"
+    };
+
+    const patternDescription = {
+      "basic": "This entity is not dependent on any other entity.",
+      "weak": "This entity is dependent on another entity. Part of its primary key is a foreign key to another entity.",
+      "one-many": "This selection includes a one-to-many relationship with another entity.",
+      "many-many": "This selection represents a many-to-many relationship between two different entities.",
+      "reflexive": "This selection represents a many-to-many relationship between the same entity.",
+      "none": "No schema pattern was detected."
+    };
+
+    const patternIcon = {
+      "basic": (<Avatar style={{ backgroundColor: "lightblue" }} size="large">B</Avatar>),
+      "weak": (<Avatar style={{ backgroundColor: "lightgreen" }} size="large">W</Avatar>),
+      "one-many": (<Avatar style={{ backgroundColor: "lightcoral" }} size="large">OM</Avatar>),
+      "many-many": (<Avatar style={{ backgroundColor: "navy" }} size="large">MM</Avatar>),
+      "reflexive": (<Avatar style={{ backgroundColor: "darkgreen" }} size="large">R</Avatar>),
+      "none": (<Avatar style={{ backgroundColor: "grey" }} size="large">N</Avatar>)
+    };
+
+    return pattern !== '' && (
+      <div style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+        border: "2px solid #ccc",
+        borderRadius: "10px",
+        backgroundColor: "#fff"
+      }}>
+        <div style={{ width: "25%" }}>{patternIcon[pattern]}</div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", paddingLeft: "10px" }}>
+          <h3><strong>{patternTitle[pattern]}</strong></h3>
+          <p>{patternDescription[pattern]}</p>
+        </div>
       </div>
-      <div style={{ marginTop: "20px", overflowY: "auto" }}>
-        <h1>Result Table</h1>
-        <Table dataSource={chartData} columns={columns} />
+    );
+  };
+
+  const generateVisualisationComponent = (vis) => {
+
+    var visName = "";
+
+    chartTypes.forEach((chart) => {
+      if (chart.id === vis.name) {
+        visName = chart.name;
+      }
+    });
+
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
+        padding: "30px",
+        border: "2px solid #ccc",
+        borderRadius: "10px",
+        marginBottom: "10px",
+        backgroundColor: "#fff"
+      }} onClick={() => generateChart(vis)}>
+        <h3><strong>{visName}</strong></h3>
       </div>
-      { modalVisible && <Modal chartData={chartData} columns={selectedColumns} type={selectedChartType} onClose={() => setModalVisible(false)} /> }
-    </div>
+    )
+  };
+
+  const generateChart = (vis) => {
+    setGraph(null);
+    setModalVisible(true);
+    setSelectedChartType(vis.name);
+    console.log(chartData);
+
+    const keys = vis.keys;
+    const attributes = vis.attributes;
+
+    switch (vis.name) {
+      case "bar":
+        setGraph(<Bar data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        break;
+      case "bubble":
+        setGraph(<Bubble data={chartData} categoryField={keys[0]} valueFields={attributes} />);
+        break;
+      case "scatter":
+        setGraph(<Scatter data={chartData} categoryField={keys[0]} valueFields={attributes} />);
+        break;
+      case "word-cloud":
+        setGraph(<WordCloud data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        break;
+      case "chloropleth":
+        setGraph(<Choropleth data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        break;
+      default:
+        setGraph(null);
+        break;
+    }
+  };
+
+  // const getImageUrl = async (visId) => {
+  //   try {
+  //     const iconRef = ref(storage, `vis-icons/${visId}.png`);
+  //     const url = await getDownloadURL(iconRef);
+  //     console.log(url);
+
+  //     return url;
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+
+  return (
+    <>
+      <Layout>
+        <Header style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="demo-logo" />
+          <Menu
+            theme="dark"
+            mode="horizontal"
+            defaultSelectedKeys={['2']}
+            items={pages}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </Header>
+        <Content>
+          <div style={{ display: "flex", height: "95vh", width: "100%" }}>
+            <Flex align="flex-start" gap="small">
+              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc" }}>
+                <Spin spinning={tableMetadata.length === 0}>
+                  {tableMetadata.map((table) => (
+                    <div key={table.tableName} style={{ padding: "10px" }}>
+                      <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
+                      {table.columns.map((column, index) => (
+                        <div>
+                          {generateColumn(table, column)}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </Spin>
+              </div>
+
+              <div style={{
+                height: "100%",
+                minWidth: "15vw",
+                maxWidth: "15vw",
+                paddingRight: "1%",
+                paddingTop: "1%",
+                borderRight: "5px solid #ccc",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}>
+                <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "20px", marginTop: "10px" }}>
+                  <button style={{ marginRight: "5px" }} className="btn" onClick={handleRenderButtonClick}>GENERATE</button>
+                  <button className="btn red-btn" onClick={clearOutput}>CLEAR</button>
+                </div>
+                <div>
+                  <h2 style={{ textDecoration: "underline" }}>Selected Columns</h2>
+                  <ul>
+                    {selectedColumns.map((selected, index) => (
+                      <li style={{ paddingBottom: "2px" }} key={index}>{selected.column}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div style={{
+                marginRight: "20px",
+                padding: "2%",
+                borderRight: "5px solid #ccc",
+                height: "100%",
+                minWidth: "20vw",
+                maxWidth: "20vw",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}>
+                <div style={{ marginBottom: "20px" }}>
+                  <h2 style={{ textDecoration: "underline", marginBottom: "10px" }}>Pattern Detected</h2>
+                  {generatePatternComponent(pattern)}
+                </div>
+                <div>
+                  <h2 style={{ textDecoration: "underline" }}>Vizualisation Options</h2>
+                  {visOptions.map((vis, index) => (
+                    <div key={index}>
+                      {generateVisualisationComponent(vis)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: "100%", marginTop: "20px" }}>
+                <h1 style={{ textDecoration: "underline" }}>Result Table</h1>
+                <div style={{ height: "90vh", padding: "1%", overflowY: "auto", }}>
+                  <Table dataSource={chartData} columns={columns} />
+                </div>
+              </div>
+            </Flex>
+          </div>
+          <Modal open={modalVisible} onCancel={clearGraph} width="70%" style={{ paddingTop: "20px" }} footer={[]}>
+            {graph}
+          </Modal>
+        </Content>
+      </Layout>
+    </>
   );
 }
 
