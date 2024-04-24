@@ -10,6 +10,8 @@ import Bubble from "../components/charts/basic/Bubble";
 import Scatter from "../components/charts/basic/Scatter";
 import WordCloud from "../components/charts/basic/WordCloud";
 import Choropleth from "../components/charts/basic/Choropleth";
+import Chord from "../components/charts/manymany/Chord";
+import Sankey from "../components/charts/manymany/Sankey";
 // import { ref, getDownloadURL } from "firebase/storage";
 // import { storage } from "../firebaseconfig";
 
@@ -29,8 +31,8 @@ function Home() {
       name: "Calendar Chart"
     },
     {
-      id: "chloropleth",
-      name: "Chloropleth Map"
+      id: "choropleth",
+      name: "Choropleth Map"
     },
     {
       id: "scatter",
@@ -125,7 +127,7 @@ function Home() {
     };
 
     selectedColumns.forEach((col) => {
-      const [table, _] = col.column.split('.');
+      const table = col.column.split('.')[0];
       if (!formData.tables.includes(table)) {
         formData.tables.push(table);
       }
@@ -341,6 +343,9 @@ function Home() {
     const keys = vis.keys;
     const attributes = vis.attributes;
 
+    console.log(keys);
+    console.log(attributes);
+
     switch (vis.name) {
       case "bar":
         setGraph(<Bar data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
@@ -354,8 +359,14 @@ function Home() {
       case "word-cloud":
         setGraph(<WordCloud data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
         break;
-      case "chloropleth":
+      case "choropleth":
         setGraph(<Choropleth data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        break;
+      case "chord":
+        setGraph(<Chord data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "sankey":
+        setGraph(<Sankey data={chartData} categoryFields={keys} valueField={attributes[0]} />);
         break;
       default:
         setGraph(null);
@@ -422,7 +433,7 @@ function Home() {
                   <button className="btn red-btn" onClick={clearOutput}>CLEAR</button>
                 </div>
                 <div>
-                  <h2 style={{ textDecoration: "underline" }}>Selected Columns</h2>
+                  <h2><strong>Selected Columns</strong></h2>
                   <ul>
                     {selectedColumns.map((selected, index) => (
                       <li style={{ paddingBottom: "2px" }} key={index}>{selected.column}</li>
@@ -443,11 +454,11 @@ function Home() {
                 alignItems: "center",
               }}>
                 <div style={{ marginBottom: "20px" }}>
-                  <h2 style={{ textDecoration: "underline", marginBottom: "10px" }}>Pattern Detected</h2>
+                  <h2 style={{ marginBottom: "10px" }}><strong>Pattern Detected</strong></h2>
                   {generatePatternComponent(pattern)}
                 </div>
                 <div>
-                  <h2 style={{ textDecoration: "underline" }}>Vizualisation Options</h2>
+                  <h2><strong>Visualisation Options</strong></h2>
                   {visOptions.map((vis, index) => (
                     <div key={index}>
                       {generateVisualisationComponent(vis)}
@@ -457,14 +468,14 @@ function Home() {
               </div>
 
               <div style={{ height: "100%", marginTop: "20px" }}>
-                <h1 style={{ textDecoration: "underline" }}>Result Table</h1>
+                <h1><strong>Result Table</strong></h1>
                 <div style={{ height: "90vh", padding: "1%", overflowY: "auto", }}>
                   <Table dataSource={chartData} columns={columns} />
                 </div>
               </div>
             </Flex>
           </div>
-          <Modal open={modalVisible} onCancel={clearGraph} width="70%" style={{ paddingTop: "20px" }} footer={[]}>
+          <Modal open={modalVisible} onCancel={clearGraph} width="80%" style={{ paddingTop: "20px" }} footer={[]}>
             {graph}
           </Modal>
         </Content>

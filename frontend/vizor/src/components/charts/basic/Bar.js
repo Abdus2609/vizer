@@ -11,7 +11,7 @@ function Bar({ data, categoryField, valueField }) {
 
         var chart = am4core.create("bar-chart", am4charts.XYChart);
         
-        chart.data = data;
+        chart.data = data.filter((_item, index) => index < 100);
 
         var categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
         categoryAxis.title.text = categoryField;
