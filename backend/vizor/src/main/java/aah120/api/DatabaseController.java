@@ -59,7 +59,6 @@ public class DatabaseController {
 			return ResponseEntity.ok("{\"message\": \"Received database details successfully\"}");
 		} catch (Exception e) {
 			e.printStackTrace();
-			// return new ResponseEntity<>("{\"message\": \"Failed to connect to the database\"}", HttpStatus.INTERNAL_SERVER_ERROR);
 			return ResponseEntity.internalServerError().body("{\"message\": \"Failed to connect to the database\"}");
 		}
 

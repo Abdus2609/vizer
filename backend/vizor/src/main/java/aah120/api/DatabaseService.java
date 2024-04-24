@@ -128,9 +128,9 @@ public class DatabaseService {
         }
 
         int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
-        int numFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
-        int numFkWithPk = (int) columns.stream().filter(col -> col.isForeignKey()).count();
-        int numAtts = columns.size() - numPks - numFks;
+        int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
+        int totalFks = (int) columns.stream().filter(col -> col.isForeignKey()).count();
+        int numAtts = columns.size() - numPks - numPureFks;
 
         List<Column> chosenPks = columns.stream().filter(Column::isPrimaryKey).toList();
         List<Column> chosenFks = columns.stream().filter(col -> col.isForeignKey()).toList();
@@ -147,35 +147,40 @@ public class DatabaseService {
 
         if (numAtts == 0) {
             pattern = "none";
-        } else if (numPks == 0 && numFks == 0) {
+        } else if (numPks == 0 && numPureFks == 0) {
             pattern = "none";
-        } else if (isBasicEntity(numPks, numFks, numFkWithPk, tables, columns)) {
+        } else if (isBasicEntity(numPks, totalFks, tables)) {
             pattern = "basic";
+
             Column key = numPks == 0 ? chosenFks.get(0) : chosenPks.get(0);
+            String keyName = numPks == 0 ? String.join("_", chosenFkNames) : chosenPkNames.get(0);
+
             if (bar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("bar", List.of(key.getName()), chosenAttNames));
+                visOptions.add(new VisualisationOption("bar", List.of(keyName), chosenAttNames));
             }
             if (calendar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("calendar", List.of(key.getName()), chosenAttNames));
+                visOptions.add(new VisualisationOption("calendar", List.of(keyName), chosenAttNames));
             }
             if (scatter(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("scatter", List.of(key.getName()), chosenAttNames));
+                visOptions.add(new VisualisationOption("scatter", List.of(keyName), chosenAttNames));
             }
             if (bubble(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("bubble", List.of(key.getName()), chosenAttNames));
+                visOptions.add(new VisualisationOption("bubble", List.of(keyName), chosenAttNames));
             }
-            if (chloroplethMap(key, chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("chloropleth", List.of(key.getName()), chosenAttNames));
+            if (choropleth(key, chosenAttTypes)) {
+                visOptions.add(new VisualisationOption("choropleth", List.of(keyName), chosenAttNames));
             }
             if (wordCloud(key, chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("word-cloud", List.of(key.getName()), chosenAttNames));
+                visOptions.add(new VisualisationOption("word-cloud", List.of(keyName), chosenAttNames));
             }
-        } else if (isWeakEntity(numPks, numFks, numFkWithPk, tables, columns)) {
+        } else if (isWeakEntity(tables, columns)) {
             pattern = "weak";
-            List<Column> keys = new ArrayList<>(chosenPks);
-            keys.addAll(chosenFks);
-            List<String> keyNames = keys.stream().map(Column::getName).toList();
-            if (line(keys, chosenAttTypes)) {
+
+            String fkColumnName = String.join("_", chosenFkNames);
+            List<String> keyNames = new ArrayList<>(chosenPks.stream().filter(pk -> !pk.isForeignKey()).map(Column::getName).toList());
+            keyNames.add(fkColumnName);
+
+            if (line(chosenPks, chosenAttTypes)) {
                 visOptions.add(new VisualisationOption("line", keyNames, chosenAttNames));
             }
             if (stackedBar(chosenAttTypes)) {
@@ -187,11 +192,13 @@ public class DatabaseService {
             if (spider(chosenAttTypes)) {
                 visOptions.add(new VisualisationOption("spider", keyNames, chosenAttNames));
             }
-        } else if (isOneManyRelationship(numPks, numFks, numFkWithPk, tables, columns)) {
+        } else if (isOneManyRelationship(numPks, numPureFks, columns)) {
             pattern = "one-many";
-            List<Column> keys = new ArrayList<>(chosenPks);
-            keys.addAll(chosenFks);
-            List<String> keyNames = keys.stream().map(Column::getName).toList();
+
+            String fkColumnName = String.join("_", chosenFkNames);
+            List<String> keyNames = new ArrayList<>(chosenPkNames);
+            keyNames.add(fkColumnName);
+
             if (treemap(chosenAttTypes)) {
                 visOptions.add(new VisualisationOption("treemap", keyNames, chosenAttNames));
             }
@@ -201,14 +208,16 @@ public class DatabaseService {
             if (circlePacking(chosenAttTypes)) {
                 visOptions.add(new VisualisationOption("circle-packing", keyNames, chosenAttNames));
             }
-        } else if (isManyManyRelationship(numPks, numFks, numFkWithPk, tables, columns)) {
-            if (isReflexive(numPks, numFks, numFkWithPk, tables, columns)) {
+        } else if (isManyManyRelationship(numPks, tables)) {
+            if (isReflexive(tables)) {
                 pattern = "reflexive";
+
                 if (chord(chosenAttTypes)) {
                     visOptions.add(new VisualisationOption("chord", chosenPkNames, chosenAttNames));
                 }
             } else {
                 pattern = "many-many";
+
                 if (sankey(chosenAttTypes)) {
                     visOptions.add(new VisualisationOption("sankey", chosenPkNames, chosenAttNames));
                 }
@@ -220,36 +229,28 @@ public class DatabaseService {
         // build and execute query to get data
         List<Map<String, Object>> data = new ArrayList<>();
         try (Connection connection = connectionManager.getConnection()) {
-            
-            StringBuilder sb = new StringBuilder();
-            
-            sb.append("SELECT ");
-            
-            for (int i = 0; i < fullColumnNames.size(); i++) {
-                sb.append(fullColumnNames.get(i) + " AS " + columnNames.get(i));
-                if (i == fullColumnNames.size() - 1) {
-                    sb.append(" ");
-                } else {
-                    sb.append(", ");
-                }
+
+            String queryStr = "";
+
+            if (pattern.equals("basic")) {
+                queryStr = generateBasicQuery(tableNames, columnNames, numPks, chosenPkNames, chosenFkNames,
+                        chosenAttNames);
+            } else if (pattern.equals("weak")) {
+                queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+            } else if (pattern.equals("one-many")) {
+                queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+            } else {
+                queryStr = generateRegularQuery(tableNames, columnNames);
             }
-            
-            sb.append("FROM ");
-            sb.append(String.join(", ", tableNames));
-            sb.append(" WHERE ");
 
-            sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
-            sb.append(";");
-
-            String queryStr = sb.toString();
             System.out.println(queryStr);
 
             PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
             ResultSet resultSet = preparedStatement.executeQuery();
-            
+
             ResultSetMetaData metaData = resultSet.getMetaData();
             int columnCount = metaData.getColumnCount();
-            
+
             while (resultSet.next()) {
                 Map<String, Object> row = new LinkedHashMap<>();
                 for (int i = 1; i <= columnCount; i++) {
@@ -267,6 +268,121 @@ public class DatabaseService {
         return new DFQueryResponse(pattern, visOptions, data);
     }
 
+    private String generateRegularQuery(List<String> tableNames, List<String> columnNames) {
+
+        System.out.println("Generating regular query");
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT ");
+
+        for (int i = 0; i < columnNames.size(); i++) {
+            sb.append(columnNames.get(i));
+            if (i == columnNames.size() - 1) {
+                sb.append(" ");
+            } else {
+                sb.append(", ");
+            }
+        }
+
+        sb.append("FROM ");
+        sb.append(String.join(", ", tableNames));
+        sb.append(" WHERE ");
+
+        sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+        sb.append(";");
+
+        return sb.toString();
+    }
+
+    private String generateBasicQuery(List<String> tableNames, List<String> columnNames, int numPks,
+            List<String> chosenPkNames, List<String> chosenFkNames, List<String> chosenAttNames) {
+
+        System.out.println("Generating basic query");
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT ");
+
+        if (numPks == 0) {
+            sb.append(String.join(" || '_' || ", chosenFkNames)).append(" AS ").append(String.join("_", chosenFkNames));
+            sb.append(", ").append(
+                    String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+        } else {
+            sb.append(String.join(", ", chosenPkNames));
+            sb.append(", ").append(String.join(", ", chosenAttNames));
+        }
+
+        sb.append(" FROM ");
+        sb.append(String.join(", ", tableNames));
+
+        sb.append(" WHERE ");
+        sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+
+        if (numPks == 0) {
+            sb.append(" GROUP BY ").append(String.join(", ", chosenFkNames));
+            sb.append(" ORDER BY ").append(String.join(", ", chosenFkNames));
+        }
+
+        sb.append(";");
+
+        return sb.toString();
+    }
+
+    private String generateWeakQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
+            List<String> chosenFkNames, List<String> chosenAttNames) {
+
+        System.out.println("Generating weak query");
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT ");
+        sb.append(String.join(" || '_' || ", chosenFkNames)).append(" AS ").append(String.join("_", chosenFkNames));
+        sb.append(", ").append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
+        sb.append(", ").append(
+                String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+
+        sb.append(" FROM ");
+        sb.append(String.join(", ", tableNames));
+
+        sb.append(" WHERE ");
+        sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+
+        sb.append(" GROUP BY ").append(String.join(", ", chosenPkNames));
+        sb.append(" ORDER BY ").append(String.join(", ", chosenPkNames));
+
+        sb.append(";");
+
+        return sb.toString();
+    }
+
+    private String generateOneManyQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
+            List<String> chosenFkNames, List<String> chosenAttNames) {
+
+        System.out.println("Generating one-many query");
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("SELECT ");
+        sb.append(String.join(" || '_' || ", chosenFkNames)).append(" AS ").append(String.join("_", chosenFkNames));
+        sb.append(", ").append(String.join(", ", chosenPkNames));
+        sb.append(", ").append(
+                String.join(", ", chosenAttNames.stream().map(att -> "ABS(" + att + ")" + " AS " + att).toList()));
+
+        sb.append(" FROM ");
+        sb.append(String.join(", ", tableNames));
+
+        sb.append(" WHERE ");
+        sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+
+        sb.append(" ORDER BY ").append(String.join(", ", chosenAttNames));
+        sb.append(" DESC ");
+
+        sb.append(";");
+
+        return sb.toString();
+    }
+
     private boolean isScalarType(String type) {
         return NUM_TYPES.contains(type) || TEMP_TYPES.contains(type);
     }
@@ -276,30 +392,29 @@ public class DatabaseService {
     }
 
     private boolean calendar(List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(t -> TEMP_TYPES.contains(t));
+        return attTypes.size() == 1 && TEMP_TYPES.contains(attTypes.get(0));
     }
 
     private boolean wordCloud(Column key, List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.size() <= 2 && LEX_TYPES.contains(key.getType())
-                && attTypes.stream().anyMatch(this::isScalarType);
+        return attTypes.size() == 1 && LEX_TYPES.contains(key.getType())
+                && isScalarType(attTypes.get(0));
     }
 
     private boolean scatter(List<String> attTypes) {
-        return attTypes.size() >= 2 && attTypes.size() <= 3
-                && attTypes.stream().filter(this::isScalarType).count() >= 2;
+        return attTypes.size() == 2 && attTypes.stream().allMatch(this::isScalarType);
     }
 
     private boolean bubble(List<String> attTypes) {
-        return attTypes.size() >= 3 && attTypes.size() <= 4
-                && attTypes.stream().filter(this::isScalarType).count() >= 3;
+        return attTypes.size() == 3 && attTypes.stream().allMatch(this::isScalarType);
     }
 
-    private boolean chloroplethMap(Column key, List<String> attTypes) {
+    private boolean choropleth(Column key, List<String> attTypes) {
+        // NEED TO CHECK IF KEY IS GEOGRAPHICAL - DK HOW
         return attTypes.size() == 1;
     }
 
     private boolean line(List<Column> keys, List<String> attTypes) {
-        if (attTypes.size() == 0 || attTypes.size() > 2) {
+        if (attTypes.size() != 1) {
             return false;
         }
 
@@ -325,33 +440,32 @@ public class DatabaseService {
     }
 
     private boolean treemap(List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.stream().anyMatch(this::isScalarType);
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
     }
 
     private boolean hierarchyTree(List<String> attTypes) {
-        return attTypes.size() <= 1 && LEX_TYPES.contains(attTypes.get(0));
+        return attTypes.size() == 0;
     }
 
     private boolean circlePacking(List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
     }
 
     private boolean sankey(List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
     }
 
     private boolean chord(List<String> attTypes) {
-        return attTypes.size() >= 1 && attTypes.size() <= 2 && attTypes.stream().anyMatch(this::isScalarType);
+        return attTypes.size() == 1 && isScalarType(attTypes.get(0));
     }
 
-    private boolean isBasicEntity(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
-            List<Column> columns) {
+    private boolean isBasicEntity(int numPks, int totalFks, List<TableMetadata> tables) {
 
         if (numPks > 1) {
             return false;
         }
 
-        if (numFkWithPk == 0) {
+        if (totalFks == 0) {
             return true;
         }
 
@@ -368,8 +482,7 @@ public class DatabaseService {
         return false;
     }
 
-    private boolean isWeakEntity(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
-            List<Column> columns) {
+    private boolean isWeakEntity(List<TableMetadata> tables, List<Column> columns) {
 
         // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
         TableMetadata table = tables.get(0);
@@ -381,8 +494,7 @@ public class DatabaseService {
             return false;
         }
 
-        // the fks that are also pks NEED to be subset of total pks otherwise reflexive
-        // many-many
+        // parent pks NEED to be subset of all pks else reflexive many-many
         if (bothPkAndFk.size() == table.getPrimaryKeys().size()) {
             return false;
         }
@@ -398,27 +510,25 @@ public class DatabaseService {
         return false;
     }
 
-    private boolean isOneManyRelationship(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
-            List<Column> columns) {
+    private boolean isOneManyRelationship(int numPks, int numPureFks, List<Column> columns) {
 
         // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
         // TableMetadata table = tables.get(0);
 
-        if (numFks == 0 || numPks == 0) {
+        if (numPureFks == 0 || numPks == 0) {
             return false;
         }
 
-        List<Column> chosenFks = columns.stream().filter(col -> col.isForeignKey() && col.isPrimaryKey()).toList();
+        List<Column> chosenFkPks = columns.stream().filter(col -> col.isForeignKey() && col.isPrimaryKey()).toList();
 
-        if (chosenFks.size() == 0) {
+        if (chosenFkPks.size() == 0) {
             return true;
         }
 
         return false;
     }
 
-    private boolean isManyManyRelationship(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
-            List<Column> columns) {
+    private boolean isManyManyRelationship(int numPks, List<TableMetadata> tables) {
 
         if (numPks != 2) {
             return false;
@@ -441,8 +551,7 @@ public class DatabaseService {
         return true;
     }
 
-    private boolean isReflexive(int numPks, int numFks, int numFkWithPk, List<TableMetadata> tables,
-            List<Column> columns) {
+    private boolean isReflexive(List<TableMetadata> tables) {
 
         // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
         TableMetadata table = tables.get(0);
