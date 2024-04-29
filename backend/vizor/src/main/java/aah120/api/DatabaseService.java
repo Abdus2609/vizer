@@ -149,77 +149,78 @@ public class DatabaseService {
             pattern = "none";
         } else if (numPks == 0 && numPureFks == 0) {
             pattern = "none";
-        } else if (isBasicEntity(numPks, totalFks, tables)) {
+        } else if (isBasicEntity(numPks, totalFks, tables, columns)) {
             pattern = "basic";
 
             Column key = numPks == 0 ? chosenFks.get(0) : chosenPks.get(0);
             String keyName = numPks == 0 ? String.join("_", chosenFkNames) : chosenPkNames.get(0);
 
             if (bar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("bar", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("bar", keyName, "", chosenAttNames));
             }
             if (calendar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("calendar", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("calendar", keyName, "", chosenAttNames));
             }
             if (scatter(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("scatter", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("scatter", keyName, "", chosenAttNames));
             }
             if (bubble(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("bubble", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("bubble", keyName, "", chosenAttNames));
             }
             if (choropleth(key, chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("choropleth", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("choropleth", keyName, "", chosenAttNames));
             }
             if (wordCloud(key, chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("word-cloud", List.of(keyName), chosenAttNames));
+                visOptions.add(new VisualisationOption("word-cloud", keyName, "", chosenAttNames));
             }
         } else if (isWeakEntity(tables, columns)) {
             pattern = "weak";
 
-            String fkColumnName = String.join("_", chosenFkNames);
-            List<String> keyNames = new ArrayList<>(chosenPks.stream().filter(pk -> !pk.isForeignKey()).map(Column::getName).toList());
-            keyNames.add(fkColumnName);
+            String key1 = String.join("_", chosenFkNames);
+            String key2 = chosenPks.stream().filter(pk -> !pk.isForeignKey()).map(Column::getName).findFirst().get();
 
             if (line(chosenPks, chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("line", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("line", key1, key2, chosenAttNames));
             }
             if (stackedBar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("stacked-bar", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("stacked-bar", key1, key2, chosenAttNames));
             }
             if (groupedBar(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("grouped-bar", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("grouped-bar", key1, key2, chosenAttNames));
             }
             if (spider(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("spider", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("spider", key1, key2, chosenAttNames));
             }
-        } else if (isOneManyRelationship(numPks, numPureFks, columns)) {
+        } else if (isOneManyRelationship(numPks, numPureFks, tables, columns)) {
             pattern = "one-many";
 
-            String fkColumnName = String.join("_", chosenFkNames);
-            List<String> keyNames = new ArrayList<>(chosenPkNames);
-            keyNames.add(fkColumnName);
+            String key1 = String.join("_", chosenFkNames.stream().filter(fk -> !chosenPkNames.contains(fk)).toList());
+            ;
+            String key2 = chosenPkNames.get(0);
 
             if (treemap(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("treemap", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("treemap", key1, key2, chosenAttNames));
             }
             if (hierarchyTree(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("hierarchy-tree", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("hierarchy-tree", key1, key2, chosenAttNames));
             }
             if (circlePacking(chosenAttTypes)) {
-                visOptions.add(new VisualisationOption("circle-packing", keyNames, chosenAttNames));
+                visOptions.add(new VisualisationOption("circle-packing", key1, key2, chosenAttNames));
             }
         } else if (isManyManyRelationship(numPks, tables)) {
             if (isReflexive(tables)) {
                 pattern = "reflexive";
 
                 if (chord(chosenAttTypes)) {
-                    visOptions.add(new VisualisationOption("chord", chosenPkNames, chosenAttNames));
+                    visOptions.add(new VisualisationOption("chord", chosenPkNames.get(0), chosenPkNames.get(1),
+                            chosenAttNames));
                 }
             } else {
                 pattern = "many-many";
 
                 if (sankey(chosenAttTypes)) {
-                    visOptions.add(new VisualisationOption("sankey", chosenPkNames, chosenAttNames));
+                    visOptions.add(new VisualisationOption("sankey", chosenPkNames.get(0), chosenPkNames.get(1),
+                            chosenAttNames));
                 }
             }
         } else {
@@ -338,7 +339,8 @@ public class DatabaseService {
 
         sb.append("SELECT ");
         sb.append(String.join(" || '_' || ", chosenFkNames)).append(" AS ").append(String.join("_", chosenFkNames));
-        sb.append(", ").append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
+        sb.append(", ")
+                .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
         sb.append(", ").append(
                 String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
 
@@ -348,8 +350,12 @@ public class DatabaseService {
         sb.append(" WHERE ");
         sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
 
-        sb.append(" GROUP BY ").append(String.join(", ", chosenPkNames));
-        sb.append(" ORDER BY ").append(String.join(", ", chosenPkNames));
+        sb.append(" GROUP BY ")
+                .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
+                .append(", ").append(String.join(", ", chosenFkNames));
+        sb.append(" ORDER BY ")
+                .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
+                .append(", ").append(String.join(", ", chosenFkNames));
 
         sb.append(";");
 
@@ -363,8 +369,11 @@ public class DatabaseService {
 
         StringBuilder sb = new StringBuilder();
 
+        List<String> chosenPureFks = chosenFkNames.stream().filter(fk -> !chosenPkNames.contains(fk)).toList();
+
         sb.append("SELECT ");
-        sb.append(String.join(" || '_' || ", chosenFkNames)).append(" AS ").append(String.join("_", chosenFkNames));
+        sb.append(String.join(" || '_' || ", chosenPureFks)).append(" AS ")
+                .append(String.join("_", chosenPureFks));
         sb.append(", ").append(String.join(", ", chosenPkNames));
         sb.append(", ").append(
                 String.join(", ", chosenAttNames.stream().map(att -> "ABS(" + att + ")" + " AS " + att).toList()));
@@ -418,7 +427,7 @@ public class DatabaseService {
             return false;
         }
 
-        List<Column> k2 = keys.stream().filter(k -> !k.isPrimaryKey()).toList();
+        List<Column> k2 = keys.stream().filter(k -> !k.isForeignKey()).toList();
 
         if (k2.stream().anyMatch(k -> !isScalarType(k.getType()))) {
             return false;
@@ -459,7 +468,7 @@ public class DatabaseService {
         return attTypes.size() == 1 && isScalarType(attTypes.get(0));
     }
 
-    private boolean isBasicEntity(int numPks, int totalFks, List<TableMetadata> tables) {
+    private boolean isBasicEntity(int numPks, int totalFks, List<TableMetadata> tables, List<Column> columns) {
 
         if (numPks > 1) {
             return false;
@@ -475,7 +484,10 @@ public class DatabaseService {
         boolean inheritedPk = table.getForeignKeys().stream().map(ForeignKey::getChildColumn).toList()
                 .containsAll(table.getPrimaryKeys());
 
-        if (inheritedPk || table.getPrimaryKeys().size() == 0) {
+        List<String> chosenFkNotPks = columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey())
+                .map(Column::getName).toList();
+
+        if ((inheritedPk && chosenFkNotPks.size() == 0) || table.getPrimaryKeys().size() == 0) {
             return true;
         }
 
@@ -510,22 +522,30 @@ public class DatabaseService {
         return false;
     }
 
-    private boolean isOneManyRelationship(int numPks, int numPureFks, List<Column> columns) {
+    private boolean isOneManyRelationship(int numPks, int numPureFks, List<TableMetadata> tables,
+            List<Column> columns) {
 
         // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
-        // TableMetadata table = tables.get(0);
+        TableMetadata table = tables.get(0);
 
         if (numPureFks == 0 || numPks == 0) {
             return false;
         }
 
-        List<Column> chosenFkPks = columns.stream().filter(col -> col.isForeignKey() && col.isPrimaryKey()).toList();
+        List<String> chosenPureFks = columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey())
+                .map(Column::getName).toList();
+        List<ForeignKey> chosenFkObjs = table.getForeignKeys().stream()
+                .filter(fk -> chosenPureFks.contains(fk.getChildColumn())).toList();
 
-        if (chosenFkPks.size() == 0) {
-            return true;
+        if (chosenFkObjs.size() != chosenPureFks.size()) {
+            return false;
         }
 
-        return false;
+        if (chosenFkObjs.stream().map(ForeignKey::getParentTable).distinct().count() != 1) {
+            return false;
+        }
+
+        return true;
     }
 
     private boolean isManyManyRelationship(int numPks, List<TableMetadata> tables) {
