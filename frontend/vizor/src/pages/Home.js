@@ -4,7 +4,7 @@ import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal } fro
 import 'antd/dist/reset.css';
 // import NavBar from "../components/Navbar";
 import { Content, Header } from "antd/es/layout/layout";
-import Bar5 from "../components/charts/basic/Bar5";
+// import Bar5 from "../components/charts/basic/Bar5";
 import Bar from "../components/charts/basic/Bar";
 import Bubble from "../components/charts/basic/Bubble";
 import Scatter from "../components/charts/basic/Scatter";
@@ -12,6 +12,12 @@ import WordCloud from "../components/charts/basic/WordCloud";
 import Choropleth from "../components/charts/basic/Choropleth";
 import Chord from "../components/charts/manymany/Chord";
 import Sankey from "../components/charts/manymany/Sankey";
+import Line from "../components/charts/weak/Line";
+import StackedBar from "../components/charts/weak/StackedBar";
+import GroupedBar from "../components/charts/weak/GroupedBar";
+import Spider from "../components/charts/weak/Spider";
+import TreeMap from "../components/charts/onemany/TreeMap";
+import CirclePacking from "../components/charts/onemany/CirclePacking";
 // import { ref, getDownloadURL } from "firebase/storage";
 // import { storage } from "../firebaseconfig";
 
@@ -84,7 +90,7 @@ function Home() {
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedChartType, setSelectedChartType] = useState('');
+  // const [selectedChartType, setSelectedChartType] = useState('');
   const [visOptions, setVisOptions] = useState([]);
   const [pattern, setPattern] = useState('');
   const [graph, setGraph] = useState(null);
@@ -104,7 +110,8 @@ function Home() {
 
       const data = await response.json();
       setTableMetadata(data);
-      console.log(data);
+      console.log("Table Metadata:");
+      console.log(data)
     }
 
     fetchTableMetadata();
@@ -149,6 +156,8 @@ function Home() {
     setPattern(data.pattern);
     setVisOptions(data.visualisations);
     setChartData(data.data);
+
+    console.log("Data:");
     console.log(data);
   };
 
@@ -166,7 +175,7 @@ function Home() {
   const clearOutput = () => {
     setChartData([]);
     setSelectedColumns([]);
-    setSelectedChartType('');
+    // setSelectedChartType('');
     setPattern('');
     setVisOptions([]);
     setGraph(null);
@@ -199,7 +208,9 @@ function Home() {
   const generateColumn = (table, column) => {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
     const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
+    const isTemporalVar = ['year'].includes(column.name);
     const isLexicalType = ['varchar', 'text', 'char'].includes(column.type);
+    const isGoegraphicalType = (['country', 'city', 'state', 'province'].includes(table.tableName) && ['name', 'code'].includes(column.name)) || ['country', 'city', 'state', 'province'].includes(column.name);
     const isPrimaryKey = column.primaryKey;
     const isForeignKey = column.foreignKey;
 
@@ -215,9 +226,21 @@ function Home() {
       </Tooltip>
     );
 
+    const tempVarIcon = isTemporalVar && (
+      <Tooltip title="This column represents a TEMPORAL variable.">
+        <Avatar style={{ backgroundColor: "lightgreen" }} size="small">T</Avatar>
+      </Tooltip>
+    );
+
     const lexIcon = isLexicalType && (
       <Tooltip title="This column has a LEXICAL data type.">
         <Avatar style={{ backgroundColor: "lightcoral" }} size="small">L</Avatar>
+      </Tooltip>
+    );
+
+    const geoIcon = isGoegraphicalType && (
+      <Tooltip title="This column represents a GEOGRAPHICAL location.">
+        <Avatar style={{ backgroundColor: "teal" }} size="small">G</Avatar>
       </Tooltip>
     );
 
@@ -250,7 +273,9 @@ function Home() {
         <div style={{ display: "flex", gap: "5px" }}>
           {numIcon}
           {tempIcon}
+          {tempVarIcon}
           {lexIcon}
+          {geoIcon}
           {pkIcon}
           {fkIcon}
         </div>
@@ -337,36 +362,59 @@ function Home() {
   const generateChart = (vis) => {
     setGraph(null);
     setModalVisible(true);
-    setSelectedChartType(vis.name);
+    // setSelectedChartType(vis.name);
+    console.log("Chart Data:")
     console.log(chartData);
 
-    const keys = vis.keys;
+    const key1 = vis.key1;
+    const key2 = vis.key2;
     const attributes = vis.attributes;
 
+    const keys = [key1, key2];
+
+    console.log("Keys and Attributes:");
     console.log(keys);
     console.log(attributes);
 
     switch (vis.name) {
       case "bar":
-        setGraph(<Bar data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        setGraph(<Bar data={chartData} categoryField={key1} valueField={attributes[0]} />);
         break;
       case "bubble":
-        setGraph(<Bubble data={chartData} categoryField={keys[0]} valueFields={attributes} />);
+        setGraph(<Bubble data={chartData} categoryField={key1} valueFields={attributes} />);
         break;
       case "scatter":
-        setGraph(<Scatter data={chartData} categoryField={keys[0]} valueFields={attributes} />);
+        setGraph(<Scatter data={chartData} categoryField={key1} valueFields={attributes} />);
         break;
       case "word-cloud":
-        setGraph(<WordCloud data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        setGraph(<WordCloud data={chartData} categoryField={key1} valueField={attributes[0]} />);
         break;
       case "choropleth":
-        setGraph(<Choropleth data={chartData} categoryField={keys[0]} valueField={attributes[0]} />);
+        setGraph(<Choropleth data={chartData} categoryField={key1} valueField={attributes[0]} />);
         break;
       case "chord":
         setGraph(<Chord data={chartData} categoryFields={keys} valueField={attributes[0]} />);
         break;
       case "sankey":
         setGraph(<Sankey data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "line":
+        setGraph(<Line data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "stacked-bar":
+        setGraph(<StackedBar data={chartData} categoryFields={keys} valueFields={attributes} />);
+        break;
+      case "grouped-bar":
+        setGraph(<GroupedBar data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "spider":
+        setGraph(<Spider data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "treemap":
+        setGraph(<TreeMap data={chartData} categoryFields={keys} valueField={attributes[0]} />);
+        break;
+      case "circle-packing":
+        setGraph(<CirclePacking data={chartData} categoryFields={keys} valueField={attributes[0]} />);
         break;
       default:
         setGraph(null);
@@ -439,6 +487,9 @@ function Home() {
                       <li style={{ paddingBottom: "2px" }} key={index}>{selected.column}</li>
                     ))}
                   </ul>
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", width: "100%", borderTop: "5px solid #ccc", paddingTop: "10px" }}>
+                  <h2><strong>Filters</strong></h2>
                 </div>
               </div>
 
