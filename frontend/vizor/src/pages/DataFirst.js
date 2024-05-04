@@ -21,68 +21,98 @@ import CirclePacking from "../components/charts/onemany/CirclePacking";
 // import { ref, getDownloadURL } from "firebase/storage";
 // import { storage } from "../firebaseconfig";
 
-function Home() {
+function DataFirst() {
 
   const chartTypes = [
     {
       id: "bar",
       name: "Bar Chart",
+      pattern: "basic",
+      image: "bar.png"
     },
     {
       id: "bubble",
-      name: "Bubble Chart"
+      name: "Bubble Chart",
+      pattern: "basic",
+      image: "bubble.png"
     },
     {
       id: "calendar",
-      name: "Calendar Chart"
+      name: "Calendar Chart",
+      pattern: "basic",
+      image: "calendar.png"
     },
     {
       id: "choropleth",
-      name: "Choropleth Map"
+      name: "Choropleth Map",
+      pattern: "basic",
+      image: "choropleth.png"
     },
     {
       id: "scatter",
-      name: "Scatter Chart"
+      name: "Scatter Chart",
+      pattern: "basic",
+      image: "scatter.png"
     },
     {
       id: "word-cloud",
-      name: "Word Cloud"
+      name: "Word Cloud",
+      pattern: "basic",
+      image: "word-cloud.png"
     },
     {
       id: "line",
-      name: "Line Chart"
+      name: "Line Chart",
+      pattern: "weak",
+      image: "line.png"
     },
     {
       id: "grouped-bar",
-      name: "Grouped Bar Chart"
+      name: "Grouped Bar Chart",
+      pattern: "weak",
+      image: "grouped-bar.png"
     },
     {
       id: "stacked-bar",
-      name: "Stacked Bar Chart"
+      name: "Stacked Bar Chart",
+      pattern: "weak",
+      image: "stacked-bar.png"
     },
     {
       id: "spider",
-      name: "Spider Chart"
+      name: "Spider Chart",
+      pattern: "weak",
+      image: "spider.png"
     },
     {
       id: "circle-packing",
-      name: "Circle Packing"
+      name: "Circle Packing",
+      pattern: "one-many",
+      image: "circle-packing.png"
     },
     {
       id: "hierarchy-tree",
-      name: "Hierarchy Tree"
+      name: "Hierarchy Tree",
+      pattern: "one-many",
+      image: "hierarchy-tree.png"
     },
     {
       id: "treemap",
-      name: "Treemap"
+      name: "Treemap",
+      pattern: "one-many",
+      image: "treemap.png"
     },
     {
       id: "chord",
-      name: "Chord Diagram"
+      name: "Chord Diagram",
+      pattern: "many-many",
+      image: "chord.png"
     },
     {
       id: "sankey",
-      name: "Sankey Diagram"
+      name: "Sankey Diagram",
+      pattern: "many-many",
+      image: "sankey.png"
     }
   ];
 
@@ -95,7 +125,15 @@ function Home() {
   const [pattern, setPattern] = useState('');
   const [graph, setGraph] = useState(null);
 
+  const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
+
+  const pages = new Array(3).fill(null).map((_, index) => ({
+    key: index + 1,
+    label: index === 0 ? (<a href="/">CONNECT</a>) : index === 1 ? (<a href="/data-first">DATA-FIRST</a>) : (<a href="/viz-first">VIZ-FIRST</a>),
+  }));
+
   useEffect(() => {
+
     async function fetchTableMetadata() {
       const response = await fetch('http://localhost:8080/api/v1/tables/', {
         method: 'GET',
@@ -105,7 +143,11 @@ function Home() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch table metadata');
+        Modal.error({
+          title: 'Error!',
+          content: 'Failed to fetch table metadata.',
+        });
+        return;
       }
 
       const data = await response.json();
@@ -120,7 +162,10 @@ function Home() {
   const handleRenderButtonClick = async () => {
 
     if (selectedColumns.length === 0) {
-      alert('Please select at least one column');
+      Modal.error({
+        title: 'No columns selected!',
+        content: 'Please select columns to visualise',
+      });
       return;
     }
 
@@ -129,6 +174,7 @@ function Home() {
     setChartData([]);
 
     const formData = {
+      pattern: "",
       tables: [],
       columns: selectedColumns.map((col) => col.column),
     };
@@ -149,7 +195,11 @@ function Home() {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to render table');
+      Modal.error({
+        title: 'Error!',
+        content: 'Failed to generate results.',
+      });
+      return;
     }
 
     const data = await response.json();
@@ -170,8 +220,6 @@ function Home() {
     }
   };
 
-  const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
-
   const clearOutput = () => {
     setChartData([]);
     setSelectedColumns([]);
@@ -180,12 +228,12 @@ function Home() {
     setVisOptions([]);
     setGraph(null);
     setModalVisible(false);
-  }
+  };
 
   const clearGraph = () => {
     setGraph(null);
     setModalVisible(false);
-  }
+  };
 
   const findFkParentColumn = (tableFks, columnName) => {
 
@@ -199,11 +247,6 @@ function Home() {
 
     return result;
   };
-
-  const pages = new Array(3).fill(null).map((_, index) => ({
-    key: index + 1,
-    label: index === 0 ? (<a href="/">CONNECT</a>) : index === 1 ? (<a href="/home">DATA-FIRST</a>) : (<a href="/vizfirst">VIZ-FIRST</a>),
-  }));
 
   const generateColumn = (table, column) => {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
@@ -336,7 +379,7 @@ function Home() {
     var visName = "";
 
     chartTypes.forEach((chart) => {
-      if (chart.id === vis.name) {
+      if (chart.id === vis.id) {
         visName = chart.name;
       }
     });
@@ -352,7 +395,8 @@ function Home() {
         border: "2px solid #ccc",
         borderRadius: "10px",
         marginBottom: "10px",
-        backgroundColor: "#fff"
+        backgroundColor: "#fff",
+        cursor: "pointer"
       }} onClick={() => generateChart(vis)}>
         <h3><strong>{visName}</strong></h3>
       </div>
@@ -363,7 +407,7 @@ function Home() {
     setGraph(null);
     setModalVisible(true);
     // setSelectedChartType(vis.name);
-    console.log("Chart Data:")
+    console.log("Chart Data:");
     console.log(chartData);
 
     const key1 = vis.key1;
@@ -376,7 +420,7 @@ function Home() {
     console.log(keys);
     console.log(attributes);
 
-    switch (vis.name) {
+    switch (vis.id) {
       case "bar":
         setGraph(<Bar data={chartData} categoryField={key1} valueField={attributes[0]} />);
         break;
@@ -416,6 +460,10 @@ function Home() {
       case "circle-packing":
         setGraph(<CirclePacking data={chartData} categoryFields={keys} valueField={attributes[0]} />);
         break;
+      case "calendar":
+      case "hierarchy-tree":
+      case "heatmap":
+      case "network":
       default:
         setGraph(null);
         break;
@@ -451,12 +499,15 @@ function Home() {
           <div style={{ display: "flex", height: "95vh", width: "100%" }}>
             <Flex align="flex-start" gap="small">
               <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc" }}>
+                <div style={{ display: "flex", marginTop: "10px", justifyContent: "center" }}>
+                  <h2><strong>Tables</strong></h2>
+                </div>
                 <Spin spinning={tableMetadata.length === 0}>
                   {tableMetadata.map((table) => (
                     <div key={table.tableName} style={{ padding: "10px" }}>
                       <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
                       {table.columns.map((column, index) => (
-                        <div>
+                        <div key={index}>
                           {generateColumn(table, column)}
                         </div>
                       ))}
@@ -520,7 +571,7 @@ function Home() {
 
               <div style={{ height: "100%", marginTop: "20px" }}>
                 <h1><strong>Result Table</strong></h1>
-                <div style={{ height: "90vh", padding: "1%", overflowY: "auto", }}>
+                <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
                   <Table dataSource={chartData} columns={columns} />
                 </div>
               </div>
@@ -535,4 +586,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default DataFirst;

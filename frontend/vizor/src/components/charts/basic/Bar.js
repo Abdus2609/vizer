@@ -38,8 +38,8 @@ function Bar({ data, categoryField, valueField }) {
         series.tooltip.pointerOrientation = "vertical";
         series.columns.template.tooltipText = categoryField + ": [bold]{categoryX}[/]\n" + valueField + ": [bold]{valueY}[/]";
         series.columns.template.strokeWidth = 0;        
-        series.columns.template.column.cornerRadiusTopLeft = 10;
-        series.columns.template.column.cornerRadiusTopRight = 10;
+        // series.columns.template.column.cornerRadiusTopLeft = 10;
+        // series.columns.template.column.cornerRadiusTopRight = 10;
         series.columns.template.column.fillOpacity = 0.8;
         
         var hoverState = series.columns.template.column.states.create("hover");

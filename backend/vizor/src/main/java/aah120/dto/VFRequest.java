@@ -6,21 +6,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class VFQueryRequest {
+public class VFRequest {
 
-    private final String visChoice;
+    private final String visId;
     private final String table;
 
     @JsonCreator
-    public VFQueryRequest(
-            @JsonProperty("visChoice") String visChoice,
+    public VFRequest(
+            @JsonProperty("visId") String visId,
             @JsonProperty("table") String table) {
-        this.visChoice = visChoice;
+        this.visId = visId;
         this.table = table;
     }
 
-    public String getVisChoice() {
-        return visChoice;
+    public String getVisId() {
+        return visId;
     }
 
     public String getTable() {

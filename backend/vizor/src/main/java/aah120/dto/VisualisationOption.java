@@ -4,16 +4,24 @@ import java.util.List;
 
 public class VisualisationOption {
     
-    String name;
-    String key1;
-    String key2;
-    List<String> attributes;
+    private final String id;
+    private final String name;
+    private final String key1;
+    private final String key2;
+    private final List<String> attributes;
+    private final String title;
 
-    public VisualisationOption(String name, String key1, String key2, List<String> attributes) {
+    public VisualisationOption(String id, String name, String key1, String key2, List<String> attributes, String title) {
+        this.id = id;
         this.name = name;
         this.key1 = key1;
         this.key2 = key2;
         this.attributes = attributes;
+        this.title = title;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getName() {
@@ -30,5 +38,9 @@ public class VisualisationOption {
 
     public List<String> getAttributes() {
         return attributes;
+    }
+
+    public String getTitle() {
+        return title;
     }
 }

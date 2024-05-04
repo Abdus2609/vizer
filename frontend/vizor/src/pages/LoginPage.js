@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { firestore } from '../firebaseconfig';
 import { addDoc, collection, getDocs } from 'firebase/firestore';
-import { Form, Input, Button, AutoComplete } from 'antd';
+import { Form, Input, Button, AutoComplete, Modal } from 'antd';
 
 function LoginPage() {
 	const [username, setUsername] = useState('');
@@ -48,7 +48,7 @@ function LoginPage() {
 				database
 			};
 
-			const response = await fetch('http://localhost:8080/api/v1/database', {
+			const response = await fetch('http://localhost:8080/api/v1/db-login', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -57,8 +57,11 @@ function LoginPage() {
 			});
 
 			if (!response.ok) {
-				alert('Failed to connect to database');
-				throw new Error('Failed to connect to database');
+				Modal.error({
+					title: 'Error!',
+					content: 'Failed to connect to database.',
+				});
+				return;
 			}
 
 			const values = await form.validateFields();
@@ -73,10 +76,17 @@ function LoginPage() {
 				await addDoc(collection(firestore, 'databases'), { value: values.database });
 			}
 
-			alert('Database connection successful!');
-			window.location.href = '/home';
+			Modal.success({
+				title: 'Success!',
+				content: 'Connected to database successfully.',
+				onOk: () => window.location.href = '/data-first'
+			});
+			// window.location.href = '/home';
 		} catch (error) {
-			throw new Error(error);
+			Modal.error({
+				title: 'Error!',
+				content: 'Failed to connect to database.',
+			});
 		}
 	}
 
