@@ -113,6 +113,7 @@ function VizFirst() {
 
   const [selectedChartType, setSelectedChartType] = useState("");
   const [tableMetadata, setTableMetadata] = useState([]);
+  const [shownTables, setShownTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState("");
   const [pattern, setPattern] = useState("");
   const [results, setResults] = useState([]);
@@ -125,10 +126,11 @@ function VizFirst() {
 
   const pages = new Array(3).fill(null).map((_, index) => ({
     key: index + 1,
-    label: index === 0 ? (<a href="/">CONNECT</a>) : index === 1 ? (<a href="/home">DATA-FIRST</a>) : (<a href="/vizfirst">VIZ-FIRST</a>),
+    label: index === 0 ? (<a href="/">CONNECT</a>) : index === 1 ? (<a href="/data-first">DATA-FIRST</a>) : (<a href="/viz-first">VIZ-FIRST</a>),
   }));
 
   useEffect(() => {
+
     async function fetchTableMetadata() {
       const response = await fetch('http://localhost:8080/api/v1/tables/', {
         method: 'GET',
@@ -147,6 +149,7 @@ function VizFirst() {
 
       const data = await response.json();
       setTableMetadata(data);
+      setShownTables(data.map((table) => table.tableName));
       console.log("Table Metadata:");
       console.log(data)
     }
@@ -154,39 +157,31 @@ function VizFirst() {
     fetchTableMetadata();
   }, []);
 
-  const generateVisOptionComponent = (vis) => {
-
-    return (
-      <div style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100%",
-        padding: "30px",
-        border: `2px solid ${selectedChartType === vis.id ? "#0000ff" : "#ccc"}`,
-        borderRadius: "10px",
-        marginBottom: "10px",
-        backgroundColor: "#fff",
-        cursor: "pointer",
-        color: selectedChartType === vis.id ? "#0000ff" : "#000",
-      }} onClick={() => setSelectedChartType(vis.id)}>
-        <h3><strong>{vis.name}</strong></h3>
-      </div>
-    )
-  };
-
-  const findFkParentColumn = (tableFks, columnName) => {
-
-    var result = "PARENT NOT FOUND";
-
-    tableFks.forEach((fk) => {
-      if (fk.childColumn === columnName) {
-        result = `${fk.parentTable}.${fk.parentColumn}`;
-      }
+  const handleSelectChartType = async (id) => {
+    
+    const response = await fetch("http://localhost:8080/api/v1/vf-select/", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        visId: id,
+      }),
     });
-
-    return result;
+    
+    if (!response.ok) {
+      Modal.error({
+        title: "Error!",
+        content: "Failed to select this visualisation type. Try again.",
+      });
+      return;
+    }
+    
+    const data = await response.json();
+    console.log("Possible Tables:");
+    console.log(data);
+    setShownTables(data);
+    setSelectedChartType(id);
   };
 
   const handleRenderButtonClick = async () => {
@@ -239,7 +234,7 @@ function VizFirst() {
     setLoading(false);
   };
 
-  const generateColumn = (table, column) => {
+  const generateColumnComponent = (table, column) => {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
     const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
     const isTemporalVar = ['year'].includes(column.name);
@@ -311,6 +306,19 @@ function VizFirst() {
     );
   };
 
+  const findFkParentColumn = (tableFks, columnName) => {
+
+    var result = "PARENT NOT FOUND";
+
+    tableFks.forEach((fk) => {
+      if (fk.childColumn === columnName) {
+        result = `${fk.parentTable}.${fk.parentColumn}`;
+      }
+    });
+
+    return result;
+  };
+
   const generatePatternComponent = (pattern) => {
     const patternTitle = {
       "basic": "Basic Entity",
@@ -360,6 +368,26 @@ function VizFirst() {
   };
 
   const generateVisualisationComponent = (vis) => {
+
+    if (vis === null) {
+      return (
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          padding: "20px",
+          marginBottom: "10px",
+          border: "2px solid #ccc",
+          borderRadius: "10px",
+          backgroundColor: "#fff",
+        }}>
+          <h3><strong>No Viz Options Available</strong></h3>
+          <p>There are no visualisation options available for the selected table and visualisation type.</p>
+        </div>
+      );
+    }
 
     return (
       <div style={{
@@ -480,7 +508,36 @@ function VizFirst() {
     }
   };
 
+  const generateVisOptionComponent = (vis) => {
+
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "100%",
+        padding: "30px 20px",
+        border: `2px solid ${selectedChartType === vis.id ? "#fff" : "#ccc"}`,
+        borderRadius: "10px",
+        marginBottom: "10px",
+        backgroundColor: selectedChartType === vis.id ? "#1677ff" : "#fff",
+        cursor: "pointer",
+        color: selectedChartType === vis.id ? "#fff" : "#000",
+        transition: "all 0.2s ease-in-out"
+      }} onClick={() => handleSelectChartType(vis.id)}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          <h3><strong>{vis.name}</strong></h3>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img src={require(`../assets/${vis.image}`)} alt={vis.name} style={{ width: "40%" }} />
+        </div>
+      </div>
+    )
+  };
+
   const clearOutput = () => {
+    setShownTables(tableMetadata.map((table) => table.tableName));
     setPattern("");
     setResults([]);
     setLoading(false);
@@ -511,7 +568,11 @@ function VizFirst() {
         <Content>
           <div style={{ display: "flex", height: "95vh", width: "100%" }}>
             <Flex align="flex-start" gap="small">
-              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc", justifyContent: "center" }}>
+              <div style={{
+                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
+                // borderRight: "5px solid #ccc", 
+                justifyContent: "center"
+              }}>
                 <div style={{ display: "flex", paddingTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Visualisation Types</strong></h2>
                 </div>
@@ -522,19 +583,22 @@ function VizFirst() {
                 ))}
               </div>
 
-              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc" }}>
+              <div style={{
+                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
+                // borderRight: "5px solid #ccc" 
+              }}>
                 <div style={{ display: "flex", paddingTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Tables</strong></h2>
                 </div>
                 <Spin spinning={tableMetadata.length === 0}>
-                  {tableMetadata.map((table) => (
+                  {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
                     <div key={table.tableName} style={{ padding: "10px" }}>
                       <Checkbox checked={selectedTable === table.tableName} onChange={(e) => setSelectedTable(e.target.checked ? table.tableName : "")}>
                         <h2 style={{ borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
                       </Checkbox>
                       {table.columns.map((column, index) => (
                         <div key={index}>
-                          {generateColumn(table, column)}
+                          {generateColumnComponent(table, column)}
                         </div>
                       ))}
                     </div>
@@ -542,7 +606,11 @@ function VizFirst() {
                 </Spin>
               </div>
 
-              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc", marginRight: "20px" }}>
+              <div style={{
+                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
+                // borderRight: "5px solid #ccc", 
+                marginRight: "20px"
+              }}>
                 <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "20px", marginTop: "10px" }}>
                   <button style={{ marginRight: "5px", width: "50%" }} className="btn" onClick={handleRenderButtonClick}>GENERATE</button>
                   <button style={{ width: "50%" }} className="btn red-btn" onClick={clearOutput}>CLEAR</button>
@@ -554,11 +622,11 @@ function VizFirst() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", marginTop: "10px", alignItems: "center", justifyContent: "center" }}>
                     <h2><strong>Visualisation Options</strong></h2>
-                    {results.map((res, index) => (
-                      <div key={index} style={{ width: "100%" }} >
-                        {generateVisualisationComponent(res)}
-                      </div>
-                    ))}
+                    {results.length === 0 && pattern !== "" ? generateVisualisationComponent(null) : results.map((res, index) => (
+                    <div key={index}>
+                      {generateVisualisationComponent(res)}
+                    </div>
+                  ))}
                   </div>
                 </Spin>
               </div>

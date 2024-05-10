@@ -1,6 +1,6 @@
 // import Modal from "../components/Modal";
 import React, { useState, useEffect } from "react";
-import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal } from 'antd';
+import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal, Input, InputNumber, Select } from 'antd';
 import 'antd/dist/reset.css';
 // import NavBar from "../components/Navbar";
 import { Content, Header } from "antd/es/layout/layout";
@@ -117,6 +117,7 @@ function DataFirst() {
   ];
 
   const [tableMetadata, setTableMetadata] = useState([]);
+  const [shownTables, setShownTables] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -124,6 +125,9 @@ function DataFirst() {
   const [visOptions, setVisOptions] = useState([]);
   const [pattern, setPattern] = useState('');
   const [graph, setGraph] = useState(null);
+  const [limit, setLimit] = useState("");
+  const [filters, setFilters] = useState({});
+  // const [loadingTables, setLoadingTables] = useState(false);
 
   const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
 
@@ -135,6 +139,7 @@ function DataFirst() {
   useEffect(() => {
 
     async function fetchTableMetadata() {
+      // setLoadingTables(true);
       const response = await fetch('http://localhost:8080/api/v1/tables/', {
         method: 'GET',
         headers: {
@@ -152,6 +157,8 @@ function DataFirst() {
 
       const data = await response.json();
       setTableMetadata(data);
+      setShownTables(data.map((table) => table.tableName));
+      // setLoadingTables(false);
       console.log("Table Metadata:");
       console.log(data)
     }
@@ -169,6 +176,35 @@ function DataFirst() {
       return;
     }
 
+    if (limit !== "" && !Number.isInteger(parseInt(limit))) {
+      Modal.error({
+        title: 'Invalid row limit!',
+        content: 'Please enter a valid integer value for the row limit.',
+      });
+      return;
+    }
+
+    const usedFilters = {};
+
+    for (let fullColumnName of Object.keys(filters)) {
+      console.log("Full Column Name:");
+      console.log(fullColumnName);
+
+      const filter = filters[fullColumnName];
+
+      if (filter.type === "num" && filter.value !== "" && !Number.isInteger(parseInt(filter.value))) {
+        Modal.error({
+          title: 'Invalid filter value!',
+          content: 'Please enter a valid integer value for the filter.',
+        });
+        return;
+      }
+
+      if (filter.value !== "") {
+        usedFilters[fullColumnName] = filter;
+      }
+    }
+
     setPattern('');
     setVisOptions([]);
     setChartData([]);
@@ -176,13 +212,15 @@ function DataFirst() {
     const formData = {
       pattern: "",
       tables: [],
-      columns: selectedColumns.map((col) => col.column),
+      columns: selectedColumns.map((col) => col.fullColumnName),
+      filters: usedFilters,
+      limit: limit === "" ? -1 : parseInt(limit),
     };
 
     selectedColumns.forEach((col) => {
-      const table = col.column.split('.')[0];
-      if (!formData.tables.includes(table)) {
-        formData.tables.push(table);
+      const tableName = col.fullColumnName.split('.')[0];
+      if (!formData.tables.includes(tableName)) {
+        formData.tables.push(tableName);
       }
     });
 
@@ -211,44 +249,76 @@ function DataFirst() {
     console.log(data);
   };
 
-  const handleCheckboxChange = (column, columnType) => {
-    const isSelected = selectedColumns.find(col => col.column === column);
+  const handleCheckboxChange = (fullColumnName, columnObj) => {
+    const isSelected = selectedColumns.find(col => col.fullColumnName === fullColumnName);
     if (isSelected) {
-      setSelectedColumns(prevSelected => prevSelected.filter(col => col.column !== column));
+      setSelectedColumns(prevSelected => prevSelected.filter(col => col.fullColumnName !== fullColumnName));
+      if (selectedColumns.length === 1) {
+        setShownTables(tableMetadata.map((table) => table.tableName));
+      }
     } else {
-      setSelectedColumns(prevSelected => [...prevSelected, { column, columnType }]);
+      setSelectedColumns(prevSelected => [...prevSelected, { fullColumnName, type: columnObj.type }]);
+
+      const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(columnObj.type);
+      const isLexicalType = ['varchar', 'text', 'char'].includes(columnObj.type);
+
+      if (isNumericType || isLexicalType) {
+        setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { comparator: "=", value: "", type: isNumericType ? "num" : "lex" } }));
+      }
+
+      const tableName = fullColumnName.split('.')[0];
+      setShownTables([tableName]);
     }
   };
 
-  const clearOutput = () => {
-    setChartData([]);
-    setSelectedColumns([]);
-    // setSelectedChartType('');
-    setPattern('');
-    setVisOptions([]);
-    setGraph(null);
-    setModalVisible(false);
+  const generateFilterComponent = (fullColumnName, filter) => {
+
+    const isNumericType = filter.type === "num";
+
+    const numComparators = (
+      <Select defaultValue="eq" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="eq">{"="}</Select.Option>
+        <Select.Option value="neq">{"!="}</Select.Option>
+        <Select.Option value="gt">{">"}</Select.Option>
+        <Select.Option value="lt">{"<"}</Select.Option>
+        <Select.Option value="lt">{"<"}</Select.Option>
+        <Select.Option value="gte">{">="}</Select.Option>
+        <Select.Option value="lte">{"<="}</Select.Option>
+      </Select>
+    );
+
+    const lexComparators = (
+      <Select defaultValue="eq" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="eq">{"="}</Select.Option>
+        <Select.Option value="neq">{"!="}</Select.Option>
+      </Select>
+    );
+
+    const numInput = (
+      <InputNumber addonBefore={numComparators} value={filters[fullColumnName].value} placeholder="Enter value..." style={{ width: "100%" }} onChange={(val) => handleFilterValueChange(fullColumnName, val)} />
+    );
+
+    const lexInput = (
+      <Input addonBefore={lexComparators} value={filters[fullColumnName].value} placeholder="Enter value..." style={{ width: "100%" }} onChange={(e) => handleFilterValueChange(fullColumnName, e.target.value)} />
+    );
+
+    return (
+      <div style={{ paddingBottom: "10px" }}>
+        <h3><strong>{fullColumnName}</strong></h3>
+        {isNumericType ? numInput : lexInput}
+      </div>
+    );
   };
 
-  const clearGraph = () => {
-    setGraph(null);
-    setModalVisible(false);
+  const handleFilterComparatorChange = (fullColumnName, comparator) => {
+    setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { ...prevFilters[fullColumnName], comparator } }));
   };
 
-  const findFkParentColumn = (tableFks, columnName) => {
-
-    var result = "PARENT NOT FOUND";
-
-    tableFks.forEach((fk) => {
-      if (fk.childColumn === columnName) {
-        result = `${fk.parentTable}.${fk.parentColumn}`;
-      }
-    });
-
-    return result;
+  const handleFilterValueChange = (fullColumnName, value) => {
+    setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { ...prevFilters[fullColumnName], value } }));
   };
 
-  const generateColumn = (table, column) => {
+  const generateColumnComponent = (table, column) => {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
     const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
     const isTemporalVar = ['year'].includes(column.name);
@@ -308,8 +378,8 @@ function DataFirst() {
       }}>
         <Checkbox
           style={{ paddingBottom: "5px" }}
-          checked={selectedColumns.find(col => col.column === `${table.tableName}.${column.name}`)}
-          onChange={() => handleCheckboxChange(`${table.tableName}.${column.name}`, column.type)}
+          checked={selectedColumns.find(col => col.fullColumnName === `${table.tableName}.${column.name}`)}
+          onChange={() => handleCheckboxChange(`${table.tableName}.${column.name}`, column)}
         >
           {column.name}
         </Checkbox>
@@ -324,6 +394,19 @@ function DataFirst() {
         </div>
       </div>
     );
+  };
+
+  const findFkParentColumn = (tableFks, columnName) => {
+
+    var result = "PARENT NOT FOUND";
+
+    tableFks.forEach((fk) => {
+      if (fk.childColumn === columnName) {
+        result = `${fk.parentTable}.${fk.parentColumn}`;
+      }
+    });
+
+    return result;
   };
 
   const generatePatternComponent = (pattern) => {
@@ -376,11 +459,13 @@ function DataFirst() {
 
   const generateVisualisationComponent = (vis) => {
 
-    var visName = "";
+    var visName = "No Viz Options Available";
+    var visIcon = "none.png";
 
     chartTypes.forEach((chart) => {
-      if (chart.id === vis.id) {
+      if (vis && chart.id === vis.id) {
         visName = chart.name;
+        visIcon = chart.image;
       }
     });
 
@@ -390,15 +475,20 @@ function DataFirst() {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        width: "100%",
-        padding: "30px",
+        width: "95%",
+        padding: "25px 20px",
         border: "2px solid #ccc",
         borderRadius: "10px",
         marginBottom: "10px",
         backgroundColor: "#fff",
-        cursor: "pointer"
-      }} onClick={() => generateChart(vis)}>
-        <h3><strong>{visName}</strong></h3>
+        cursor: `${vis ? "pointer" : "default"}`
+      }} onClick={() => vis && generateChart(vis)}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          <h3><strong>{visName}</strong></h3>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img src={require(`../assets/${visIcon}`)} alt={visName} style={{ width: "40%" }} />
+        </div>
       </div>
     )
   };
@@ -470,17 +560,23 @@ function DataFirst() {
     }
   };
 
-  // const getImageUrl = async (visId) => {
-  //   try {
-  //     const iconRef = ref(storage, `vis-icons/${visId}.png`);
-  //     const url = await getDownloadURL(iconRef);
-  //     console.log(url);
+  const clearOutput = () => {
+    setChartData([]);
+    setSelectedColumns([]);
+    // setSelectedChartType('');
+    setPattern('');
+    setVisOptions([]);
+    setGraph(null);
+    setModalVisible(false);
+    setShownTables(tableMetadata.map((table) => table.tableName));
+    setLimit("");
+    setFilters({});
+  };
 
-  //     return url;
-  //   } catch (error) {
-  //     console.error(error);
-  //   }
-  // };
+  const clearGraph = () => {
+    setGraph(null);
+    setModalVisible(false);
+  };
 
   return (
     <>
@@ -498,17 +594,20 @@ function DataFirst() {
         <Content>
           <div style={{ display: "flex", height: "95vh", width: "100%" }}>
             <Flex align="flex-start" gap="small">
-              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", borderRight: "5px solid #ccc" }}>
+              <div style={{
+                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
+                // borderRight: "5px solid #ccc" 
+              }}>
                 <div style={{ display: "flex", marginTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Tables</strong></h2>
                 </div>
                 <Spin spinning={tableMetadata.length === 0}>
-                  {tableMetadata.map((table) => (
+                  {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
                     <div key={table.tableName} style={{ padding: "10px" }}>
                       <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
                       {table.columns.map((column, index) => (
                         <div key={index}>
-                          {generateColumn(table, column)}
+                          {generateColumnComponent(table, column)}
                         </div>
                       ))}
                     </div>
@@ -522,7 +621,7 @@ function DataFirst() {
                 maxWidth: "15vw",
                 paddingRight: "1%",
                 paddingTop: "1%",
-                borderRight: "5px solid #ccc",
+                // borderRight: "5px solid #ccc",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -535,19 +634,35 @@ function DataFirst() {
                   <h2><strong>Selected Columns</strong></h2>
                   <ul>
                     {selectedColumns.map((selected, index) => (
-                      <li style={{ paddingBottom: "2px" }} key={index}>{selected.column}</li>
+                      <li style={{ paddingBottom: "2px" }} key={index}>{selected.fullColumnName}</li>
                     ))}
                   </ul>
                 </div>
-                <div style={{ display: "flex", justifyContent: "center", width: "100%", borderTop: "5px solid #ccc", paddingTop: "10px" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
                   <h2><strong>Filters</strong></h2>
+                  {filters && Object.keys(filters).map((fullColumnName, index) => (
+                    <div key={index}>
+                      {generateFilterComponent(fullColumnName, filters[fullColumnName])}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+                  <h2><strong>Limit Row Count</strong></h2>
+                  <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "5px", width: "100%" }}>
+                    <InputNumber
+                      style={{ width: "100%" }}
+                      value={limit}
+                      placeholder="Enter max no. rows..."
+                      onChange={(value) => setLimit(value)}
+                    />
+                  </div>
                 </div>
               </div>
 
               <div style={{
                 marginRight: "20px",
                 padding: "2%",
-                borderRight: "5px solid #ccc",
+                // borderRight: "5px solid #ccc",
                 height: "100%",
                 minWidth: "20vw",
                 maxWidth: "20vw",
@@ -555,14 +670,14 @@ function DataFirst() {
                 flexDirection: "column",
                 alignItems: "center",
               }}>
-                <div style={{ marginBottom: "20px" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
                   <h2 style={{ marginBottom: "10px" }}><strong>Pattern Detected</strong></h2>
                   {generatePatternComponent(pattern)}
                 </div>
-                <div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderTop: "1px solid #ccc", paddingTop: "20px", width: "100%" }}>
                   <h2><strong>Visualisation Options</strong></h2>
-                  {visOptions.map((vis, index) => (
-                    <div key={index}>
+                  {visOptions.length === 0 && pattern !== "" ? generateVisualisationComponent(null) : visOptions.map((vis, index) => (
+                    <div key={index} style={{ width: "100%" }} >
                       {generateVisualisationComponent(vis)}
                     </div>
                   ))}
@@ -570,9 +685,9 @@ function DataFirst() {
               </div>
 
               <div style={{ height: "100%", marginTop: "20px" }}>
-                <h1><strong>Result Table</strong></h1>
+                <h1><strong>Result Data</strong></h1>
                 <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
-                  <Table dataSource={chartData} columns={columns} />
+                  {chartData.length !== 0 && <Table dataSource={chartData} columns={columns} />}
                 </div>
               </div>
             </Flex>
