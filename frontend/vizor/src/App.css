@@ -2,6 +2,15 @@
 	font-family: 'Poppins', sans-serif;
 }
 
+::-webkit-scrollbar {
+  width: 8px; /* width of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc; /* color of the thumb */
+  border-radius: 5px;
+}
+
 .App {
   text-align: center;
 }

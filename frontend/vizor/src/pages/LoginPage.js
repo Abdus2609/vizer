@@ -23,8 +23,8 @@ function LoginPage() {
 			const options = [];
 
 			snapshot.forEach((doc) => {
-				console.log(doc.data());
-				console.log(doc.data().value);
+				// console.log(doc.data());
+				// console.log(doc.data().value);
 				options.push({ value: doc.data().value });
 			})
 

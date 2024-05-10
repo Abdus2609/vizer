@@ -1,7 +1,6 @@
 package aah120.api;
 
 import java.sql.SQLException;
-// import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +18,7 @@ import aah120.dto.DFResponse;
 import aah120.dto.TableMetadata;
 import aah120.dto.VFRequest;
 import aah120.dto.VFResponse;
+import aah120.dto.VFVisSelectRequest;
 
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -56,21 +56,9 @@ public class MainController {
 		}
 	}
 
-	// @PostMapping("query")
-	// public ResponseEntity<List<Map<String, Object>>> executeQuery(@RequestBody
-	// DFRequest query) {
-	// try {
-	// List<Map<String, Object>> result = databaseService.executeQuery(query);
-	// return ResponseEntity.ok(result);
-	// } catch (SQLException e) {
-	// e.printStackTrace();
-	// return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-	// }
-	// }
-
 	@PostMapping("df-visualise")
 	public ResponseEntity<DFResponse> getVisualisations(@RequestBody DFRequest request) throws SQLException {
-		DFResponse response = databaseService.recommendVisualisations(request);
+		DFResponse response = databaseService.dfRecommendVisualisations(request);
 
 		return ResponseEntity.ok(response);
 	}
@@ -85,6 +73,13 @@ public class MainController {
 	@PostMapping("vf-execute")
 	public ResponseEntity<List<Map<String, Object>>> executeQuery(@RequestBody DFRequest request) {
 		List<Map<String, Object>> response = databaseService.vfExecuteQuery(request);
+
+		return ResponseEntity.ok(response);
+	}
+
+	@PostMapping("vf-select")
+	public ResponseEntity<List<String>> selectVis(@RequestBody VFVisSelectRequest request) throws SQLException {
+		List<String> response = databaseService.vfSelectVis(request);
 
 		return ResponseEntity.ok(response);
 	}

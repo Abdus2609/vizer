@@ -7,9 +7,12 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -21,6 +24,7 @@ import aah120.dto.DFResponse;
 import aah120.dto.TableMetadata;
 import aah120.dto.VFRequest;
 import aah120.dto.VFResponse;
+import aah120.dto.VFVisSelectRequest;
 import aah120.dto.VisualisationOption;
 
 @Service
@@ -115,7 +119,7 @@ public class DatabaseService {
     }
   }
 
-  public DFResponse recommendVisualisations(DFRequest request) throws SQLException {
+  public DFResponse dfRecommendVisualisations(DFRequest request) throws SQLException {
 
     List<String> tableNames = request.getTableNames();
     List<String> fullColumnNames = request.getFullColumnNames();
@@ -151,8 +155,10 @@ public class DatabaseService {
     List<String> chosenFkNames = chosenFks.stream().map(Column::getName).toList();
     List<String> chosenAttNames = chosenAtts.stream().map(Column::getName).toList();
 
-    // List<String> chosenPkTypes = chosenPks.stream().map(Column::getType).toList();
-    // List<String> chosenFkTypes = chosenFks.stream().map(Column::getType).toList();
+    // List<String> chosenPkTypes =
+    // chosenPks.stream().map(Column::getType).toList();
+    // List<String> chosenFkTypes =
+    // chosenFks.stream().map(Column::getType).toList();
     List<String> chosenAttTypes = chosenAtts.stream().map(Column::getType).toList();
 
     if (numAtts == 0) {
@@ -192,13 +198,13 @@ public class DatabaseService {
       if (line(chosenPks, chosenAttTypes)) {
         visOptions.add(new VisualisationOption("line", "Line Chart", key1, key2, chosenAttNames, ""));
       }
-      if (stackedBar(chosenAttTypes)) {
+      if (isCompleteWeak(chosenPkNames, chosenFkNames, tableNames) && stackedBar(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("stacked-bar", "Stacked Bar Chart", key1, key2, chosenAttNames, ""));
       }
       if (groupedBar(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("grouped-bar", "Grouped Bar Chart", key1, key2, chosenAttNames, ""));
       }
-      if (spider(chosenAttTypes)) {
+      if (isCompleteWeak(chosenPkNames, chosenFkNames, tableNames) && spider(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("spider", "Spider Chart", key1, key2, chosenAttNames, ""));
       }
     } else if (isOneManyRelationship(numPks, numPureFks, tables, columns)) {
@@ -466,7 +472,7 @@ public class DatabaseService {
   }
 
   private boolean hierarchyTree(List<String> attTypes) {
-    return attTypes.size() == 0;
+    return attTypes.size() >= 0;
   }
 
   private boolean circlePacking(List<String> attTypes) {
@@ -592,43 +598,64 @@ public class DatabaseService {
     return table.getForeignKeys().stream().map(ForeignKey::getParentTable).distinct().count() == 1;
   }
 
-  // public List<Map<String, Object>> executeQuery(DFRequest query) throws
-  // SQLException {
+  private boolean isCompleteWeak(List<String> chosenPkNames, List<String> chosenFkNames, List<String> tableNames)
+      throws SQLException {
 
-  // try (Connection connection = connectionManager.getConnection()) {
+    StringBuilder sb = new StringBuilder();
 
-  // String tableNames = String.join(", ", query.getTableNames());
-  // String columnNames = String.join(", ", query.getFullColumnNames());
+    sb.append("SELECT ");
+    sb.append(String.join(" || ' | ' || ", chosenFkNames)).append(" AS ").append("\"")
+        .append(String.join(" | ", chosenFkNames)).append("\"");
+    sb.append(", ")
+        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
 
-  // System.out.println("Received query request for table: " + tableNames + " and
-  // columns: " + columnNames);
+    sb.append(" FROM ");
+    sb.append(String.join(", ", tableNames));
 
-  // String queryStr = "SELECT " + columnNames + " FROM " + tableNames;
+    sb.append(";");
 
-  // System.out.println(queryStr);
+    String queryStr = sb.toString();
 
-  // PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
-  // ResultSet resultSet = preparedStatement.executeQuery();
+    Map<String, Set<String>> fks = new HashMap<>();
 
-  // List<Map<String, Object>> results = new ArrayList<>();
-  // ResultSetMetaData metaData = resultSet.getMetaData();
-  // int columnCount = metaData.getColumnCount();
+    try (Connection connection = connectionManager.getConnection()) {
 
-  // while (resultSet.next()) {
-  // Map<String, Object> row = new LinkedHashMap<>();
-  // for (int i = 1; i <= columnCount; i++) {
-  // row.put(metaData.getColumnName(i), resultSet.getObject(i));
-  // }
+      System.out.println(queryStr);
 
-  // results.add(row);
-  // }
+      PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
+      ResultSet resultSet = preparedStatement.executeQuery();
 
-  // return results;
-  // } catch (SQLException e) {
-  // e.printStackTrace();
-  // throw e;
-  // }
-  // }
+      if (!resultSet.next()) {
+        return false;
+      }
+
+      while (resultSet.next()) {
+        String fk = resultSet.getString(1);
+
+        if (!fks.containsKey(fk)) {
+          fks.put(fk, new HashSet<>());
+        }
+
+        fks.get(fk).add(resultSet.getString(2));
+      }
+
+    } catch (SQLException e) {
+      e.printStackTrace();
+      throw e;
+    }
+
+    List<String> allFks = fks.keySet().stream().toList();
+
+    int count = fks.get(allFks.get(0)).size();
+
+    for (String fk : allFks) {
+      if (fks.get(fk).size() != count) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   public VFResponse vfGenerateOptions(VFRequest request) {
 
@@ -931,5 +958,158 @@ public class DatabaseService {
     }
 
     return data;
+  }
+
+  public List<String> vfSelectVis(VFVisSelectRequest request) throws SQLException {
+
+    List<String> result = new ArrayList<>();
+
+    String id = request.getVisId();
+
+    if (BASIC_VIS_TYPES.contains(id)) {
+      for (TableMetadata table : databaseMetadata) {
+        List<Column> columns = table.getColumns();
+        int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
+        // int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() &&
+        // !col.isPrimaryKey()).count();
+        int totalFks = (int) columns.stream().filter(col -> col.isForeignKey() && col.isPrimaryKey()).count();
+        // int numAtts = columns.size() - numPks - numPureFks;
+
+        Column pk = columns.stream().filter(Column::isPrimaryKey).findFirst().get();
+        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+            .map(Column::getType).toList();
+
+        if (isBasicEntity(numPks, totalFks, List.of(table), columns)) {
+          if (id.equals("bar")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("calendar")) {
+            if (attTypes.stream().filter(TEMP_TYPES::contains).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("scatter")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 2) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("bubble")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 3) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("choropleth")) {
+            boolean geographicalKey = GEO_TABLE_NAMES.contains(pk.getName())
+                || (GEO_TABLE_NAMES.contains(pk.getTableName()) && GEO_COLUMN_NAMES.contains(pk.getName()));
+            if (attTypes.size() >= 1 && geographicalKey) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("word-cloud")) {
+            if (LEX_TYPES.contains(pk.getType()) && attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          }
+        }
+      }
+    } else if (WEAK_VIS_TYPES.contains(id)) {
+      for (TableMetadata table : databaseMetadata) {
+        List<Column> columns = table.getColumns();
+
+        Column k2 = columns.stream().filter(col -> col.isPrimaryKey() && !col.isForeignKey()).findFirst().orElse(null);
+
+        if (k2 == null) {
+          continue;
+        }
+
+        List<String> pkNames = columns.stream().filter(Column::isPrimaryKey).map(Column::getName).toList();
+        List<String> fkNames = columns.stream().filter(Column::isForeignKey).map(Column::getName).toList();
+
+        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+            .map(Column::getType).toList();
+
+        if (isWeakEntity(List.of(table), columns)) {
+          if (id.equals("line")) {
+            if (isScalarType(k2.getType()) && attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("stacked-bar")) {
+            if (isCompleteWeak(pkNames, fkNames, List.of(table.getTableName()))
+                && attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("grouped-bar")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("spider")) {
+            if (isCompleteWeak(pkNames, fkNames, List.of(table.getTableName()))
+                && attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          }
+        }
+      }
+    } else if (ONE_MANY_VIS_TYPES.contains(id)) {
+      for (TableMetadata table : databaseMetadata) {
+        List<Column> columns = table.getColumns();
+        int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
+        int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
+        // int totalFks = (int) columns.stream().filter(col ->
+        // col.isForeignKey()).count();
+        // int numAtts = columns.size() - numPks - numPureFks;
+
+        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+            .map(Column::getType).toList();
+
+        if (isOneManyRelationship(numPks, numPureFks, List.of(table), columns)) {
+          if (id.equals("hierarchy-tree")) {
+            result.add(table.getTableName());
+          } else if (id.equals("treemap")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          } else if (id.equals("circle-packing")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          }
+        }
+      }
+    } else if (MANY_MANY_VIS_TYPES.contains(id)) {
+      for (TableMetadata table : databaseMetadata) {
+        List<Column> columns = table.getColumns();
+        int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
+        // int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() &&
+        // !col.isPrimaryKey()).count();
+        // int totalFks = (int) columns.stream().filter(col ->
+        // col.isForeignKey()).count();
+        // int numAtts = columns.size() - numPks - numPureFks;
+
+        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+            .map(Column::getType).toList();
+
+        if (isManyManyRelationship(numPks, List.of(table))) {
+          if (id.equals("sankey")) {
+            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+              result.add(table.getTableName());
+            }
+          }
+        }
+      }
+    } else if (REFLEXIVE_VIS_TYPES.contains(id)) {
+      for (TableMetadata table : databaseMetadata) {
+        List<Column> columns = table.getColumns();
+        int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
+
+        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+            .map(Column::getType).toList();
+
+        if (isManyManyRelationship(numPks, List.of(table)) && isReflexive(List.of(table))) {
+          if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+            result.add(table.getTableName());
+          }
+        }
+      }
+    }
+
+    return result;
   }
 }
