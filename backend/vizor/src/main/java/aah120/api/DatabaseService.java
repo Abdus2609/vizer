@@ -124,6 +124,8 @@ public class DatabaseService {
     List<String> tableNames = request.getTableNames();
     List<String> fullColumnNames = request.getFullColumnNames();
     List<String> columnNames = fullColumnNames.stream().map(col -> col.split("\\.")[1]).toList();
+    Map<String, Map<String, String>> filters = request.getFilters();
+    int limit = request.getLimit();
 
     List<TableMetadata> tables = new ArrayList<>();
     List<Column> columns = new ArrayList<>();
@@ -244,19 +246,22 @@ public class DatabaseService {
 
     // build and execute query to get data
     List<Map<String, Object>> data = new ArrayList<>();
+
     try (Connection connection = connectionManager.getConnection()) {
 
       String queryStr = "";
 
       if (pattern.equals("basic")) {
         queryStr = generateBasicQuery(tableNames, columnNames, numPks, chosenPkNames, chosenFkNames,
-            chosenAttNames);
+            chosenAttNames, filters, limit);
       } else if (pattern.equals("weak")) {
-        queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+        queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+            limit);
       } else if (pattern.equals("one-many")) {
-        queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+        queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+            limit);
       } else {
-        queryStr = generateRegularQuery(tableNames, columnNames);
+        queryStr = generateRegularQuery(tableNames, columnNames, filters, limit);
       }
 
       System.out.println(queryStr);
@@ -284,7 +289,8 @@ public class DatabaseService {
     return new DFResponse(pattern, visOptions, data);
   }
 
-  private String generateRegularQuery(List<String> tableNames, List<String> columnNames) {
+  private String generateRegularQuery(List<String> tableNames, List<String> columnNames,
+      Map<String, Map<String, String>> filters, int limit) {
 
     System.out.println("Generating regular query");
 
@@ -303,16 +309,43 @@ public class DatabaseService {
 
     sb.append("FROM ");
     sb.append(String.join(", ", tableNames));
-    sb.append(" WHERE ");
 
+    sb.append(" WHERE ");
     sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
+
+    if (filters != null) {
+      for (Map.Entry<String, Map<String, String>> entry : filters.entrySet()) {
+        String columnName = entry.getKey();
+        String type = entry.getValue().get("type");
+        String comp = entry.getValue().get("comparator");
+        String val = entry.getValue().get("value");
+
+        if (type.equals("num")) {
+          sb.append(" AND ").append(columnName).append(" ").append(comp).append(" ").append(val);
+        } else if (type.equals("lex")) {
+          if (comp.equals("=")) {
+            sb.append(" AND ").append(columnName).append(" ILIKE '").append(val).append("'");
+          } else if (comp.equals("!=")) {
+            sb.append(" AND ").append(columnName).append(" NOT ILIKE '").append(val).append("'");
+          } else {
+            sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
+          }
+        }
+      }
+    }
+
+    if (limit != -1) {
+      sb.append(" LIMIT ").append(limit);
+    }
+
     sb.append(";");
 
     return sb.toString();
   }
 
   private String generateBasicQuery(List<String> tableNames, List<String> columnNames, int numPks,
-      List<String> chosenPkNames, List<String> chosenFkNames, List<String> chosenAttNames) {
+      List<String> chosenPkNames, List<String> chosenFkNames, List<String> chosenAttNames,
+      Map<String, Map<String, String>> filters, int limit) {
 
     System.out.println("Generating basic query");
 
@@ -336,9 +369,34 @@ public class DatabaseService {
     sb.append(" WHERE ");
     sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
 
+    if (filters != null) {
+      for (Map.Entry<String, Map<String, String>> entry : filters.entrySet()) {
+        String columnName = entry.getKey();
+        String type = entry.getValue().get("type");
+        String comp = entry.getValue().get("comparator");
+        String val = entry.getValue().get("value");
+
+        if (type.equals("num")) {
+          sb.append(" AND ").append(columnName).append(" ").append(comp).append(" ").append(val);
+        } else if (type.equals("lex")) {
+          if (comp.equals("=")) {
+            sb.append(" AND ").append(columnName).append(" ILIKE '").append(val).append("'");
+          } else if (comp.equals("!=")) {
+            sb.append(" AND ").append(columnName).append(" NOT ILIKE '").append(val).append("'");
+          } else {
+            sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
+          }
+        }
+      }
+    }
+
     if (numPks == 0) {
       sb.append(" GROUP BY ").append(String.join(", ", chosenFkNames));
       sb.append(" ORDER BY ").append(String.join(", ", chosenFkNames));
+    }
+
+    if (limit != -1) {
+      sb.append(" LIMIT ").append(limit);
     }
 
     sb.append(";");
@@ -347,7 +405,7 @@ public class DatabaseService {
   }
 
   private String generateWeakQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
-      List<String> chosenFkNames, List<String> chosenAttNames) {
+      List<String> chosenFkNames, List<String> chosenAttNames, Map<String, Map<String, String>> filters, int limit) {
 
     System.out.println("Generating weak query");
 
@@ -367,6 +425,27 @@ public class DatabaseService {
     sb.append(" WHERE ");
     sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
 
+    if (filters != null) {
+      for (Map.Entry<String, Map<String, String>> entry : filters.entrySet()) {
+        String columnName = entry.getKey();
+        String type = entry.getValue().get("type");
+        String comp = entry.getValue().get("comparator");
+        String val = entry.getValue().get("value");
+
+        if (type.equals("num")) {
+          sb.append(" AND ").append(columnName).append(" ").append(comp).append(" ").append(val);
+        } else if (type.equals("lex")) {
+          if (comp.equals("=")) {
+            sb.append(" AND ").append(columnName).append(" ILIKE '").append(val).append("'");
+          } else if (comp.equals("!=")) {
+            sb.append(" AND ").append(columnName).append(" NOT ILIKE '").append(val).append("'");
+          } else {
+            sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
+          }
+        }
+      }
+    }
+
     sb.append(" GROUP BY ")
         .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
         .append(", ").append(String.join(", ", chosenFkNames));
@@ -374,13 +453,17 @@ public class DatabaseService {
         .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
         .append(", ").append(String.join(", ", chosenFkNames));
 
+    if (limit != -1) {
+      sb.append(" LIMIT ").append(limit);
+    }
+
     sb.append(";");
 
     return sb.toString();
   }
 
   private String generateOneManyQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
-      List<String> chosenFkNames, List<String> chosenAttNames) {
+      List<String> chosenFkNames, List<String> chosenAttNames, Map<String, Map<String, String>> filters, int limit) {
 
     System.out.println("Generating one-many query");
 
@@ -401,8 +484,33 @@ public class DatabaseService {
     sb.append(" WHERE ");
     sb.append(String.join(" AND ", columnNames.stream().map(c -> c + " IS NOT NULL").toList()));
 
+    if (filters != null) {
+      for (Map.Entry<String, Map<String, String>> entry : filters.entrySet()) {
+        String columnName = entry.getKey();
+        String type = entry.getValue().get("type");
+        String comp = entry.getValue().get("comparator");
+        String val = entry.getValue().get("value");
+
+        if (type.equals("num")) {
+          sb.append(" AND ").append(columnName).append(" ").append(comp).append(" ").append(val);
+        } else if (type.equals("lex")) {
+          if (comp.equals("=")) {
+            sb.append(" AND ").append(columnName).append(" ILIKE '").append(val).append("'");
+          } else if (comp.equals("!=")) {
+            sb.append(" AND ").append(columnName).append(" NOT ILIKE '").append(val).append("'");
+          } else {
+            sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
+          }
+        }
+      }
+    }
+
     sb.append(" ORDER BY ").append(String.join(", ", chosenAttNames));
     sb.append(" DESC ");
+
+    if (limit != -1) {
+      sb.append(" LIMIT ").append(limit);
+    }
 
     sb.append(";");
 
@@ -899,7 +1007,18 @@ public class DatabaseService {
     String pattern = request.getPattern();
     List<String> tableNames = request.getTableNames();
     List<String> columnNames = request.getFullColumnNames();
+    
+    Map<String, Map<String, String>> filters = new HashMap<>();
+    if (request.getFilters() != null) {
+      filters = request.getFilters();
+    }
 
+    int limit = request.getLimit();
+
+    if (limit == 0) {
+      limit = -1;
+    }
+    
     List<TableMetadata> tables = new ArrayList<>();
     List<Column> columns = new ArrayList<>();
 
@@ -927,13 +1046,15 @@ public class DatabaseService {
 
       if (pattern.equals("basic")) {
         queryStr = generateBasicQuery(tableNames, columnNames, numPks, chosenPkNames, chosenFkNames,
-            chosenAttNames);
+            chosenAttNames, filters, limit);
       } else if (pattern.equals("weak")) {
-        queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+        queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+            limit);
       } else if (pattern.equals("one-many")) {
-        queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames);
+        queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+            limit);
       } else {
-        queryStr = generateRegularQuery(tableNames, columnNames);
+        queryStr = generateRegularQuery(tableNames, columnNames, filters, limit);
       }
 
       System.out.println(queryStr);

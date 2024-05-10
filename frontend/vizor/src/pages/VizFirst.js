@@ -149,7 +149,10 @@ function VizFirst() {
 
       const data = await response.json();
       setTableMetadata(data);
-      setShownTables(data.map((table) => table.tableName));
+      if (shownTables.length === 0) {
+        setShownTables(data.map((table) => table.tableName));
+      }
+
       console.log("Table Metadata:");
       console.log(data)
     }
@@ -158,7 +161,7 @@ function VizFirst() {
   }, []);
 
   const handleSelectChartType = async (id) => {
-    
+
     const response = await fetch("http://localhost:8080/api/v1/vf-select/", {
       method: 'POST',
       headers: {
@@ -168,7 +171,7 @@ function VizFirst() {
         visId: id,
       }),
     });
-    
+
     if (!response.ok) {
       Modal.error({
         title: "Error!",
@@ -176,7 +179,7 @@ function VizFirst() {
       });
       return;
     }
-    
+
     const data = await response.json();
     console.log("Possible Tables:");
     console.log(data);
@@ -623,10 +626,10 @@ function VizFirst() {
                   <div style={{ display: "flex", flexDirection: "column", marginTop: "10px", alignItems: "center", justifyContent: "center" }}>
                     <h2><strong>Visualisation Options</strong></h2>
                     {results.length === 0 && pattern !== "" ? generateVisualisationComponent(null) : results.map((res, index) => (
-                    <div key={index}>
-                      {generateVisualisationComponent(res)}
-                    </div>
-                  ))}
+                      <div key={index} style={{ width: "100%" }} >
+                        {generateVisualisationComponent(res)}
+                      </div>
+                    ))}
                   </div>
                 </Spin>
               </div>

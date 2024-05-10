@@ -157,7 +157,9 @@ function DataFirst() {
 
       const data = await response.json();
       setTableMetadata(data);
-      setShownTables(data.map((table) => table.tableName));
+      if (shownTables.length === 0) {
+        setShownTables(data.map((table) => table.tableName));
+      }
       // setLoadingTables(false);
       console.log("Table Metadata:");
       console.log(data)
@@ -276,21 +278,20 @@ function DataFirst() {
     const isNumericType = filter.type === "num";
 
     const numComparators = (
-      <Select defaultValue="eq" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
-        <Select.Option value="eq">{"="}</Select.Option>
-        <Select.Option value="neq">{"!="}</Select.Option>
-        <Select.Option value="gt">{">"}</Select.Option>
-        <Select.Option value="lt">{"<"}</Select.Option>
-        <Select.Option value="lt">{"<"}</Select.Option>
-        <Select.Option value="gte">{">="}</Select.Option>
-        <Select.Option value="lte">{"<="}</Select.Option>
+      <Select defaultValue="=" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="=">{"="}</Select.Option>
+        <Select.Option value="!=">{"!="}</Select.Option>
+        <Select.Option value=">">{">"}</Select.Option>
+        <Select.Option value="<">{"<"}</Select.Option>
+        <Select.Option value=">=">{">="}</Select.Option>
+        <Select.Option value="<=">{"<="}</Select.Option>
       </Select>
     );
 
     const lexComparators = (
-      <Select defaultValue="eq" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
-        <Select.Option value="eq">{"="}</Select.Option>
-        <Select.Option value="neq">{"!="}</Select.Option>
+      <Select defaultValue="=" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="=">{"="}</Select.Option>
+        <Select.Option value="!=">{"!="}</Select.Option>
       </Select>
     );
 
