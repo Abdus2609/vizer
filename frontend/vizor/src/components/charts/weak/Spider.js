@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import * as am4core from '@amcharts/amcharts4/core';
 import * as am4charts from '@amcharts/amcharts4/charts';
 import am4themes_animated from '@amcharts/amcharts4/themes/animated';
@@ -7,80 +7,93 @@ am4core.useTheme(am4themes_animated);
 
 function Spider({ data, categoryFields, valueField }) {
 
-    useEffect(() => {
+  const [truncate, setTruncate] = useState(false);
 
-        var chart = am4core.create("spider", am4charts.RadarChart);
+  useEffect(() => {
 
-        chart.data = data;
+    var chart = am4core.create("spider", am4charts.RadarChart);
 
-        data.forEach(item => {
-            item[categoryFields[1]] = item[categoryFields[1]].toString();
-        });
+    chart.data = data;
 
-        var categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
-        categoryAxis.dataFields.category = categoryFields[1];
-        categoryAxis.renderer.labels.template.location = 0.5;
-        categoryAxis.renderer.tooltipLocation = 0.5;
-        categoryAxis.renderer.grid.template.location = 0.5;
-        categoryAxis.title.text = categoryFields[1];
+    data.forEach(item => {
+      item[categoryFields[1]] = item[categoryFields[1]].toString();
+    });
 
-        var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
-        valueAxis.title.text = valueField;
+    var categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
+    categoryAxis.dataFields.category = categoryFields[1];
+    categoryAxis.renderer.labels.template.location = 0.5;
+    categoryAxis.renderer.tooltipLocation = 0.5;
+    categoryAxis.renderer.grid.template.location = 0.5;
+    categoryAxis.title.text = categoryFields[1];
 
-        const groupedData = {};
+    var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
+    valueAxis.title.text = valueField;
 
-        data.forEach((item) => {
-            if (!groupedData[item[categoryFields[0]]]) {
-                groupedData[item[categoryFields[0]]] = [];
-            }
-            groupedData[item[categoryFields[0]]].push(item);
-        });
+    const groupedData = {};
 
-        console.log(groupedData);
+    data.forEach((item) => {
+      if (!groupedData[item[categoryFields[0]]]) {
+        groupedData[item[categoryFields[0]]] = [];
+      }
+      groupedData[item[categoryFields[0]]].push(item);
+    });
 
-        Object.keys(groupedData).forEach((key, index) => {
+    // console.log(groupedData);
 
-            if (index >= 20) {
-                return;
-            }
+    Object.keys(groupedData).forEach((key, index) => {
 
-            var series = chart.series.push(new am4charts.RadarSeries());
-            series.dataFields.valueY = valueField;
-            series.dataFields.categoryX = categoryFields[1];
-            series.name = key;
-            series.data = groupedData[key].filter((_item, index) => index < 10);
-            series.tooltipText = "{name}: [bold]{valueY}[/]";
-            series.sequencedInterpolation = true;
+      if (index >= 10 && truncate) {
+        return;
+      }
 
-        });
+      var series = chart.series.push(new am4charts.RadarSeries());
+      series.dataFields.valueY = valueField;
+      series.dataFields.categoryX = categoryFields[1];
+      series.name = key;
 
-        chart.scrollbarX = new am4core.Scrollbar();
-        chart.scrollbarX.exportable = false;
-        chart.scrollbarY = new am4core.Scrollbar();
-        chart.scrollbarY.exportable = false;
+      if (truncate)
+        series.data = groupedData[key].filter((_item, index) => index < 20);
+      else
+        series.data = groupedData[key];
 
-        chart.cursor = new am4charts.RadarCursor();
-        chart.cursor.xAxis = categoryAxis;
-        chart.cursor.fullWidthXLine = true;
-        chart.cursor.lineX.strokeOpacity = 0;
-        chart.cursor.lineX.fillOpacity = 0.1;
-        chart.cursor.lineX.fill = am4core.color("#000000");
+      series.tooltipText = "{name}: [bold]{valueY}[/]";
+      series.sequencedInterpolation = true;
 
-        chart.mouseWheelBehavior = "zoomX";
+    });
 
-        chart.legend = new am4charts.Legend();
-        chart.legend.position = "right";
-        chart.legend.scrollable = true;
+    chart.scrollbarX = new am4core.Scrollbar();
+    chart.scrollbarX.exportable = false;
+    chart.scrollbarY = new am4core.Scrollbar();
+    chart.scrollbarY.exportable = false;
 
-        return () => {
-            chart.dispose();
-        }
+    chart.cursor = new am4charts.RadarCursor();
+    chart.cursor.xAxis = categoryAxis;
+    chart.cursor.fullWidthXLine = true;
+    chart.cursor.lineX.strokeOpacity = 0;
+    chart.cursor.lineX.fillOpacity = 0.1;
+    chart.cursor.lineX.fill = am4core.color("#000000");
 
-    }, [data, categoryFields, valueField]);
+    chart.mouseWheelBehavior = "zoomX";
 
-    return (
-        <div id="spider" style={{ width: "100%", height: "700px" }}></div>
-    );
+    chart.legend = new am4charts.Legend();
+    chart.legend.position = "right";
+    chart.legend.scrollable = true;
+
+    return () => {
+      chart.dispose();
+    }
+
+  }, [data, categoryFields, valueField, truncate]);
+
+  return (
+    <>
+      <div id="spider" style={{ width: "100%", height: "600px" }}></div>
+      <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", backgroundColor: "#ccc", paddingTop: "10px", borderRadius: "10px" }}>
+        <p><strong>Can't see your chart/seeing too much?</strong> Try adding a filter, a limit, or press TRUNCATE to enforce the proposed cardinality limit: <strong>20</strong></p>
+        {truncate ? <button className='btn red-btn' onClick={() => setTruncate(false)}>USE ALL DATA</button> : <button className='btn' onClick={() => setTruncate(true)}>TRUNCATE</button>}
+      </div>
+    </>
+  );
 
 }
 

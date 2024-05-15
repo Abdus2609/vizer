@@ -189,9 +189,6 @@ function DataFirst() {
     const usedFilters = {};
 
     for (let fullColumnName of Object.keys(filters)) {
-      console.log("Full Column Name:");
-      console.log(fullColumnName);
-
       const filter = filters[fullColumnName];
 
       if (filter.type === "num" && filter.value !== "" && !Number.isInteger(parseInt(filter.value))) {
@@ -254,22 +251,25 @@ function DataFirst() {
   const handleCheckboxChange = (fullColumnName, columnObj) => {
     const isSelected = selectedColumns.find(col => col.fullColumnName === fullColumnName);
     if (isSelected) {
-      setSelectedColumns(prevSelected => prevSelected.filter(col => col.fullColumnName !== fullColumnName));
       if (selectedColumns.length === 1) {
         setShownTables(tableMetadata.map((table) => table.tableName));
       }
-    } else {
-      setSelectedColumns(prevSelected => [...prevSelected, { fullColumnName, type: columnObj.type }]);
 
+      const updatedFilters = { ...filters };
+      delete updatedFilters[fullColumnName];
+      setFilters(updatedFilters);
+      setSelectedColumns(prevSelected => prevSelected.filter(col => col.fullColumnName !== fullColumnName));
+    } else {
       const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(columnObj.type);
       const isLexicalType = ['varchar', 'text', 'char'].includes(columnObj.type);
-
+      
       if (isNumericType || isLexicalType) {
         setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { comparator: "=", value: "", type: isNumericType ? "num" : "lex" } }));
       }
-
+      
       const tableName = fullColumnName.split('.')[0];
       setShownTables([tableName]);
+      setSelectedColumns(prevSelected => [...prevSelected, { fullColumnName, type: columnObj.type }]);
     }
   };
 
@@ -688,6 +688,7 @@ function DataFirst() {
               <div style={{ height: "100%", marginTop: "20px" }}>
                 <h1><strong>Result Data</strong></h1>
                 <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
+                  <p>NUMBER OF ROWS: {chartData.length}</p>
                   {chartData.length !== 0 && <Table dataSource={chartData} columns={columns} />}
                 </div>
               </div>

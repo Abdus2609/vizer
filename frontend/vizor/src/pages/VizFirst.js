@@ -637,7 +637,8 @@ function VizFirst() {
               <div style={{ height: "100%", marginTop: "20px" }}>
                 <h1><strong>Result Table</strong></h1>
                 <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
-                  <Table dataSource={chartData} columns={columns} />
+                  <p>Number of rows: {chartData.length}</p>
+                  {chartData.length !== 0 && <Table dataSource={chartData} columns={columns} />}
                 </div>
               </div>
 

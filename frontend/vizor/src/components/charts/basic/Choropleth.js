@@ -8,56 +8,62 @@ am4core.useTheme(am4themes_animated);
 
 function Choropleth({ data, categoryField, valueField }) {
 
-    useEffect(() => {
+	useEffect(() => {
 
-        console.log(categoryField);
-        console.log(valueField);
+		console.log(categoryField);
+		console.log(valueField);
 
-        data = data.map(item => {
-            return {
-                ...item,
-                id: item[categoryField],
-                value: item[valueField]
-            }
-        });
+		var transformedData = [];
 
-        var chart = am4core.create("choropleth", am4maps.MapChart);
+		transformedData = data.map(item => {
+			return {
+				id: item[categoryField],
+				value: item[valueField]
+			}
+		});
 
-        chart.geodata = am4geodata_worldLow;
+		var chart = am4core.create("choropleth", am4maps.MapChart);
 
-        chart.projection = new am4maps.projections.Miller();
+		chart.geodata = am4geodata_worldLow;
 
-        var polygonSeries = chart.series.push(new am4maps.MapPolygonSeries());
-        polygonSeries.useGeodata = true;
+		chart.projection = new am4maps.projections.Miller();
 
-        polygonSeries.data = data;
+		var polygonSeries = chart.series.push(new am4maps.MapPolygonSeries());
+		polygonSeries.useGeodata = true;
 
-        var polygonTemplate = polygonSeries.mapPolygons.template;
-        polygonTemplate.tooltipText = "{name}: {value}";
-        polygonTemplate.nonScalingStroke = true;
-        polygonTemplate.strokeWidth = 0.5;
+		polygonSeries.data = transformedData;
 
-        polygonSeries.heatRules.push({
-            property: "fill",
-            target: polygonSeries.mapPolygons.template,
-            min: am4core.color("#00ff00"),
-            max: am4core.color("#ff0000")
-        });
+		var polygonTemplate = polygonSeries.mapPolygons.template;
+		polygonTemplate.tooltipText = "{name}: {value}";
+		polygonTemplate.nonScalingStroke = true;
+		polygonTemplate.strokeWidth = 0.5;
 
-        var hs = polygonTemplate.states.create("hover");
-        hs.properties.fill = am4core.color("#3c5bdc");
+		polygonSeries.heatRules.push({
+			property: "fill",
+			target: polygonSeries.mapPolygons.template,
+			min: am4core.color("#00ff00"),
+			max: am4core.color("#ff0000")
+		});
 
-        console.log(polygonSeries.data)
+		var hs = polygonTemplate.states.create("hover");
+		hs.properties.fill = am4core.color("#3c5bdc");
 
-        return () => {
-            chart.dispose();
-        };
+		console.log(polygonSeries.data)
 
-    }, [data, categoryField, valueField]);
+		return () => {
+			chart.dispose();
+		};
 
-    return (
-        <div id="choropleth" style={{ width: "100%", height: "700px" }}></div>
-    );
+	}, [data, categoryField, valueField]);
+
+	return (
+		<>
+			<div id="choropleth" style={{ width: "100%", height: "600px" }}></div>
+			<div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", backgroundColor: "#ccc", paddingTop: "10px", borderRadius: "10px" }}>
+				<p><strong>Can't see your chart/seeing too much?</strong> Try adding a filter or a limit.</p>
+			</div>
+		</>
+	);
 }
 
 export default Choropleth;
