@@ -558,8 +558,8 @@ function VizFirst() {
   return (
     <>
       <Layout>
-        <Header style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="demo-logo" />
+        <Header style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: "20px" }}>
+          <img src={require("../assets/vizer-logo-zip-file/png/logo-no-background.png")} alt="logo" style={{ width: "7%", paddingTop: "15px" }} />
           <Menu
             theme="dark"
             mode="horizontal"
@@ -569,8 +569,8 @@ function VizFirst() {
           />
         </Header>
         <Content>
-          <div style={{ display: "flex", height: "95vh", width: "100%" }}>
-            <Flex align="flex-start" gap="small">
+          <div style={{ display: "flex", height: "95vh", width: "100%", backgroundColor: "#001529", justifyContent: "center" }}>
+            <Flex align="flex-start" gap="small" style={{ backgroundColor: "#fff", width: "98%", height: "95%", borderRadius: "5px" }}>
               <div style={{
                 minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
                 // borderRight: "5px solid #ccc", 

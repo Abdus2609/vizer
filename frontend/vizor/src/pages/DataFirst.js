@@ -262,11 +262,11 @@ function DataFirst() {
     } else {
       const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(columnObj.type);
       const isLexicalType = ['varchar', 'text', 'char'].includes(columnObj.type);
-      
+
       if (isNumericType || isLexicalType) {
         setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { comparator: "=", value: "", type: isNumericType ? "num" : "lex" } }));
       }
-      
+
       const tableName = fullColumnName.split('.')[0];
       setShownTables([tableName]);
       setSelectedColumns(prevSelected => [...prevSelected, { fullColumnName, type: columnObj.type }]);
@@ -582,8 +582,8 @@ function DataFirst() {
   return (
     <>
       <Layout>
-        <Header style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="demo-logo" />
+        <Header style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: "20px" }}>
+          <img src={require("../assets/vizer-logo-zip-file/png/logo-no-background.png")} alt="logo" style={{ width: "7%", paddingTop: "15px" }} />
           <Menu
             theme="dark"
             mode="horizontal"
@@ -593,8 +593,8 @@ function DataFirst() {
           />
         </Header>
         <Content>
-          <div style={{ display: "flex", height: "95vh", width: "100%" }}>
-            <Flex align="flex-start" gap="small">
+          <div style={{ display: "flex", height: "95vh", width: "100%", backgroundColor: "#001529", justifyContent: "center" }}>
+            <Flex align="flex-start" gap="small" style={{ backgroundColor: "#fff", width: "98%", height: "95%", borderRadius: "5px" }}>
               <div style={{
                 minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
                 // borderRight: "5px solid #ccc" 

@@ -91,8 +91,11 @@ function LoginPage() {
 	}
 
 	return (
-		<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-			<Form form={form} layout='vertical' style={{ padding: "30px" }}>
+		<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: "#001529" }}>
+			<Form form={form} layout='vertical' style={{ width: "20%", padding: "30px" }}>
+				<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+					<img src={require("../assets/vizer-logo-zip-file/png/logo-black-cropped.png")} alt="logo" style={{ width: "70%", paddingTop: "15px", paddingBottom: "30px" }} />
+				</div>
 				<Form.Item label='Username' name='username' rules={[{ required: true, message: 'Username is required' }]}>
 					<AutoComplete options={usernameOptions} onChange={setUsername} />
 				</Form.Item>
