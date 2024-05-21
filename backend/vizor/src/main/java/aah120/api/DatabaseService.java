@@ -32,7 +32,7 @@ public class DatabaseService {
 
   List<String> NUM_TYPES = List.of("numeric", "int2", "int4", "int8", "float4", "float8");
   List<String> TEMP_TYPES = List.of("date", "time", "timestamp");
-  List<String> LEX_TYPES = List.of("varchar", "text", "char");
+  List<String> LEX_TYPES = List.of("varchar", "text", "char", "bpchar");
   List<String> GEO_TABLE_NAMES = List.of("country", "city", "state", "county", "province");
   List<String> GEO_COLUMN_NAMES = List.of("name", "code", "id");
 
@@ -476,7 +476,7 @@ public class DatabaseService {
         .append("\"").append(String.join(" | ", chosenPureFks)).append("\"");
     sb.append(", ").append(String.join(", ", chosenPkNames));
     sb.append(", ").append(
-        String.join(", ", chosenAttNames.stream().map(att -> "ABS(" + att + ")" + " AS " + att).toList()));
+        String.join(", ", chosenAttNames.stream().map(att -> att + " AS " + att).toList()));
 
     sb.append(" FROM ");
     sb.append(String.join(", ", tableNames));
@@ -504,9 +504,6 @@ public class DatabaseService {
         }
       }
     }
-
-    sb.append(" ORDER BY ").append(String.join(", ", chosenAttNames));
-    sb.append(" DESC ");
 
     if (limit != -1) {
       sb.append(" LIMIT ").append(limit);
@@ -814,7 +811,7 @@ public class DatabaseService {
           break;
         case "scatter":
           for (int i = 0; i < atts.size() - 1; i++) {
-            for (int j = 1; j < atts.size(); j++) {
+            for (int j = 0; j < atts.size(); j++) {
               if (isScalarType(atts.get(i).getType()) && isScalarType(atts.get(j).getType()) && i != j) {
                 String title = atts.get(i).getName() + " vs " + atts.get(j).getName();
                 options.add(new VisualisationOption("scatter", "Scatter Chart", keyName, "",
@@ -826,7 +823,7 @@ public class DatabaseService {
           break;
         case "bubble":
           for (int i = 0; i < atts.size() - 2; i++) {
-            for (int j = 1; j < atts.size() - 1; j++) {
+            for (int j = 0; j < atts.size() - 1; j++) {
               for (int k = 0; k < atts.size(); k++) {
                 if (isScalarType(atts.get(i).getType()) && isScalarType(atts.get(j).getType())
                     && isScalarType(atts.get(k).getType()) && i != j && j != k && i != k) {
@@ -1007,7 +1004,7 @@ public class DatabaseService {
     String pattern = request.getPattern();
     List<String> tableNames = request.getTableNames();
     List<String> columnNames = request.getFullColumnNames();
-    
+
     Map<String, Map<String, String>> filters = new HashMap<>();
     if (request.getFilters() != null) {
       filters = request.getFilters();
@@ -1018,7 +1015,7 @@ public class DatabaseService {
     if (limit == 0) {
       limit = -1;
     }
-    
+
     List<TableMetadata> tables = new ArrayList<>();
     List<Column> columns = new ArrayList<>();
 
