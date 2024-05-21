@@ -4,11 +4,18 @@
 
 ::-webkit-scrollbar {
   width: 8px; /* width of the scrollbar */
+  height: 8px; /* height of the scrollbar */
 }
 
 ::-webkit-scrollbar-thumb {
   background: #ccc; /* color of the thumb */
-  border-radius: 5px;
+  border-radius: 3px;
+}
+
+.custom-table-header .ant-table-thead > tr > th {
+  background-color: #1677ff; /* Change to your desired color */
+  color: white; /* Change to your desired text color */
+  font-weight: bold;
 }
 
 .App {

@@ -66,13 +66,19 @@ function LoginPage() {
 
 			const values = await form.validateFields();
 
-			if (!usernameOptions.map(e => e.value).includes(values.username)
-				&& !hostOptions.map(e => e.value).includes(values.host)
-				&& !portOptions.map(e => e.value).includes(values.port)
-				&& !databaseOptions.map(e => e.value).includes(values.database)) {
+			if (!usernameOptions.map(e => e.value).includes(values.username)) {
 				await addDoc(collection(firestore, 'usernames'), { value: values.username });
+			}
+
+			if (!hostOptions.map(e => e.value).includes(values.host)) {
 				await addDoc(collection(firestore, 'hosts'), { value: values.host });
+			}
+
+			if (!portOptions.map(e => e.value).includes(values.port)) {
 				await addDoc(collection(firestore, 'ports'), { value: values.port });
+			}
+
+			if (!databaseOptions.map(e => e.value).includes(values.database)) {
 				await addDoc(collection(firestore, 'databases'), { value: values.database });
 			}
 

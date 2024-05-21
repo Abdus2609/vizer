@@ -213,7 +213,7 @@ function DataFirst() {
       tables: [],
       columns: selectedColumns.map((col) => col.fullColumnName),
       filters: usedFilters,
-      limit: limit === "" ? -1 : parseInt(limit),
+      limit: limit === "" ? -1 : parseInt(limit)
     };
 
     selectedColumns.forEach((col) => {
@@ -261,7 +261,7 @@ function DataFirst() {
       setSelectedColumns(prevSelected => prevSelected.filter(col => col.fullColumnName !== fullColumnName));
     } else {
       const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(columnObj.type);
-      const isLexicalType = ['varchar', 'text', 'char'].includes(columnObj.type);
+      const isLexicalType = ['varchar', 'text', 'char', 'bpchar'].includes(columnObj.type);
 
       if (isNumericType || isLexicalType) {
         setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { comparator: "=", value: "", type: isNumericType ? "num" : "lex" } }));
@@ -323,7 +323,7 @@ function DataFirst() {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
     const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
     const isTemporalVar = ['year'].includes(column.name);
-    const isLexicalType = ['varchar', 'text', 'char'].includes(column.type);
+    const isLexicalType = ['varchar', 'text', 'char', 'bpchar'].includes(column.type);
     const isGoegraphicalType = (['country', 'city', 'state', 'province'].includes(table.tableName) && ['name', 'code'].includes(column.name)) || ['country', 'city', 'state', 'province'].includes(column.name);
     const isPrimaryKey = column.primaryKey;
     const isForeignKey = column.foreignKey;
@@ -595,25 +595,24 @@ function DataFirst() {
         <Content>
           <div style={{ display: "flex", height: "95vh", width: "100%", backgroundColor: "#001529", justifyContent: "center" }}>
             <Flex align="flex-start" gap="small" style={{ backgroundColor: "#fff", width: "98%", height: "95%", borderRadius: "5px" }}>
-              <div style={{
-                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
-                // borderRight: "5px solid #ccc" 
-              }}>
+              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", padding: "1%" }}>
                 <div style={{ display: "flex", marginTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Tables</strong></h2>
                 </div>
-                <Spin spinning={tableMetadata.length === 0}>
-                  {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
-                    <div key={table.tableName} style={{ padding: "10px" }}>
-                      <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
-                      {table.columns.map((column, index) => (
-                        <div key={index}>
-                          {generateColumnComponent(table, column)}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </Spin>
+                <div style={{ height: "95%", overflowY: "auto", paddingRight: "2%" }}>
+                  <Spin spinning={tableMetadata.length === 0}>
+                    {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
+                      <div key={table.tableName} style={{ padding: "10px" }}>
+                        <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
+                        {table.columns.map((column, index) => (
+                          <div key={index}>
+                            {generateColumnComponent(table, column)}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </Spin>
+                </div>
               </div>
 
               <div style={{
@@ -622,30 +621,35 @@ function DataFirst() {
                 maxWidth: "15vw",
                 paddingRight: "1%",
                 paddingTop: "1%",
-                // borderRight: "5px solid #ccc",
+                paddingBottom: "1%",
+                overflowY: "auto",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
+                alignItems: "center"
               }}>
-                <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "20px", marginTop: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", paddingBottom: "10px", paddingTop: "10px" }}>
                   <button style={{ marginRight: "5px" }} className="btn" onClick={handleRenderButtonClick}>GENERATE</button>
                   <button className="btn red-btn" onClick={clearOutput}>CLEAR</button>
                 </div>
-                <div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", paddingTop: "10px", borderTop: "1px solid #ccc" }}>
                   <h2><strong>Selected Columns</strong></h2>
-                  <ul>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", paddingBottom: "10px" }}>
                     {selectedColumns.map((selected, index) => (
-                      <li style={{ paddingBottom: "2px" }} key={index}>{selected.fullColumnName}</li>
+                      <div key={index}>
+                        {selected.fullColumnName}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxHeight: "50%", overflowY: "auto", borderTop: "1px solid #ccc", paddingTop: "10px", paddingBottom: "10px" }}>
                   <h2><strong>Filters</strong></h2>
-                  {filters && Object.keys(filters).map((fullColumnName, index) => (
-                    <div key={index}>
-                      {generateFilterComponent(fullColumnName, filters[fullColumnName])}
-                    </div>
-                  ))}
+                  <div style={{ height: "100%", overflowY: "auto", paddingRight: "2%" }}>
+                    {filters && Object.keys(filters).map((fullColumnName, index) => (
+                      <div key={index}>
+                        {generateFilterComponent(fullColumnName, filters[fullColumnName])}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
                   <h2><strong>Limit Row Count</strong></h2>
@@ -662,8 +666,9 @@ function DataFirst() {
 
               <div style={{
                 marginRight: "20px",
-                padding: "2%",
-                // borderRight: "5px solid #ccc",
+                paddingRight: "1%",
+                paddingTop: "1%",
+                paddingBottom: "1%",
                 height: "100%",
                 minWidth: "20vw",
                 maxWidth: "20vw",
@@ -671,7 +676,7 @@ function DataFirst() {
                 flexDirection: "column",
                 alignItems: "center",
               }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginBottom: "20px", marginTop: "10px" }}>
                   <h2 style={{ marginBottom: "10px" }}><strong>Pattern Detected</strong></h2>
                   {generatePatternComponent(pattern)}
                 </div>
@@ -685,11 +690,15 @@ function DataFirst() {
                 </div>
               </div>
 
-              <div style={{ height: "100%", marginTop: "20px" }}>
+              <div style={{ height: "100%", marginTop: "10px", maxWidth: "40vw", paddingRight: "1%", paddingTop: "1%", paddingBottom: "1%" }}>
                 <h1><strong>Result Data</strong></h1>
-                <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
+                <div style={{ height: "90%", paddingTop: "1%", width: "100%" }}>
                   <p>NUMBER OF ROWS: {chartData.length}</p>
-                  {chartData.length !== 0 && <Table dataSource={chartData} columns={columns} />}
+                  {chartData.length !== 0 && (
+                    <div style={{ width: "100%", height: "100%", overflowY: "auto", overflowX: "auto" }}>
+                      <Table bordered dataSource={chartData} columns={columns} className="custom-table-header" />
+                    </div>
+                  )}
                 </div>
               </div>
             </Flex>

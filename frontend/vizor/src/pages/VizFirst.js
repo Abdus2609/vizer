@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal } from 'antd';
+import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Tooltip, Modal, InputNumber, Input, Select } from 'antd';
 import 'antd/dist/reset.css';
 import { Content, Header } from "antd/es/layout/layout";
 import Bar from "../components/charts/basic/Bar";
@@ -121,8 +121,15 @@ function VizFirst() {
   const [graph, setGraph] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedKey1, setSelectedKey1] = useState("-");
+  const [selectedKey2, setSelectedKey2] = useState("-");
+  const [selectedAtt1, setSelectedAtt1] = useState("-");
+  const [selectedAtt2, setSelectedAtt2] = useState("-");
+  const [selectedAtt3, setSelectedAtt3] = useState("-");
+  const [filters, setFilters] = useState({});
+  const [limit, setLimit] = useState("");
 
-  const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
+  // const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
 
   const pages = new Array(3).fill(null).map((_, index) => ({
     key: index + 1,
@@ -162,6 +169,13 @@ function VizFirst() {
 
   const handleSelectChartType = async (id) => {
 
+    setResults([]);
+    setSelectedKey1("-");
+    setSelectedKey2("-");
+    setSelectedAtt1("-");
+    setSelectedAtt2("-");
+    setSelectedAtt3("-");
+
     const response = await fetch("http://localhost:8080/api/v1/vf-select/", {
       method: 'POST',
       headers: {
@@ -188,6 +202,14 @@ function VizFirst() {
   };
 
   const handleRenderButtonClick = async () => {
+
+    setSelectedKey1("-");
+    setSelectedKey2("-");
+    setSelectedAtt1("-");
+    setSelectedAtt2("-");
+    setSelectedAtt3("-");
+    setFilters({});
+    setLimit("");
     setLoading(true);
 
     if (selectedTable === "") {
@@ -241,7 +263,7 @@ function VizFirst() {
     const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(column.type);
     const isTemporalType = ['date', 'time', 'timestamp'].includes(column.type);
     const isTemporalVar = ['year'].includes(column.name);
-    const isLexicalType = ['varchar', 'text', 'char'].includes(column.type);
+    const isLexicalType = ['varchar', 'text', 'char', 'bpchar'].includes(column.type);
     const isGoegraphicalType = (['country', 'city', 'state', 'province'].includes(table.tableName) && ['name', 'code'].includes(column.name)) || ['country', 'city', 'state', 'province'].includes(column.name);
     const isPrimaryKey = column.primaryKey;
     const isForeignKey = column.foreignKey;
@@ -370,26 +392,121 @@ function VizFirst() {
     );
   };
 
-  const generateVisualisationComponent = (vis) => {
+  const handleSelectKey1 = (key) => {
+    addFilter(key, selectedKey1);
+    setSelectedKey1(key);
+  };
 
-    if (vis === null) {
-      return (
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-          padding: "20px",
-          marginBottom: "10px",
-          border: "2px solid #ccc",
-          borderRadius: "10px",
-          backgroundColor: "#fff",
-        }}>
-          <h3><strong>No Viz Options Available</strong></h3>
-          <p>There are no visualisation options available for the selected table and visualisation type.</p>
-        </div>
-      );
+  const handleSelectKey2 = (key) => {
+    addFilter(key, selectedKey2);
+    setSelectedKey2(key);
+  };
+
+  const handleSelectAtt1 = (att) => {
+    addFilter(att, selectedAtt1);
+    setSelectedAtt1(att);
+  };
+
+  const handleSelectAtt2 = (att) => {
+    addFilter(att, selectedAtt2);
+    setSelectedAtt2(att);
+  };
+
+  const handleSelectAtt3 = (att) => {
+    addFilter(att, selectedAtt3);
+    setSelectedAtt3(att);
+  };
+
+  const addFilter = (newColumnName, oldColumnName) => {
+
+    let fullColumnName = selectedTable + "." + oldColumnName;
+
+    const updatedFilters = { ...filters };
+    delete updatedFilters[fullColumnName];
+    setFilters(updatedFilters);
+
+    if (newColumnName === "-") {
+      return;
+    }
+
+    fullColumnName = selectedTable + "." + newColumnName;
+
+    const columnObj = tableMetadata.find((table) => table.tableName === selectedTable).columns.find((column) => column.name === newColumnName);
+
+    const isNumericType = ['int2', 'int4', 'int8', 'float4', 'float8', 'numeric'].includes(columnObj.type);
+    const isLexicalType = ['varchar', 'text', 'char', 'bpchar'].includes(columnObj.type);
+
+    if (isNumericType || isLexicalType) {
+      setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { comparator: "=", value: "", type: isNumericType ? "num" : "lex" } }));
+    }
+  };
+
+  const handleFilterComparatorChange = (fullColumnName, comparator) => {
+    setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { ...prevFilters[fullColumnName], comparator } }));
+  };
+
+  const handleFilterValueChange = (fullColumnName, value) => {
+    setFilters(prevFilters => ({ ...prevFilters, [fullColumnName]: { ...prevFilters[fullColumnName], value } }));
+  };
+
+  const generateFilterComponent = (fullColumnName, filter) => {
+
+    const isNumericType = filter.type === "num";
+
+    const numComparators = (
+      <Select defaultValue="=" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="=">{"="}</Select.Option>
+        <Select.Option value="!=">{"!="}</Select.Option>
+        <Select.Option value=">">{">"}</Select.Option>
+        <Select.Option value="<">{"<"}</Select.Option>
+        <Select.Option value=">=">{">="}</Select.Option>
+        <Select.Option value="<=">{"<="}</Select.Option>
+      </Select>
+    );
+
+    const lexComparators = (
+      <Select defaultValue="=" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+        <Select.Option value="=">{"="}</Select.Option>
+        <Select.Option value="!=">{"!="}</Select.Option>
+      </Select>
+    );
+
+    const numInput = (
+      <InputNumber addonBefore={numComparators} value={filters[fullColumnName].value} placeholder="Enter value..." style={{ width: "100%" }} onChange={(val) => handleFilterValueChange(fullColumnName, val)} />
+    );
+
+    const lexInput = (
+      <Input addonBefore={lexComparators} value={filters[fullColumnName].value} placeholder="Enter value..." style={{ width: "100%" }} onChange={(e) => handleFilterValueChange(fullColumnName, e.target.value)} />
+    );
+
+    return (
+      <div style={{ paddingBottom: "10px" }}>
+        <h3><strong>{fullColumnName}</strong></h3>
+        {isNumericType ? numInput : lexInput}
+      </div>
+    );
+  };
+
+  const generateVisResultsComponent = (vis) => {
+
+    if (selectedKey1 && selectedKey1 !== "-" && vis.key1 !== selectedKey1) {
+      return null;
+    }
+
+    if (selectedKey2 && selectedKey2 !== "-" && vis.key2 !== selectedKey2) {
+      return null;
+    }
+
+    if (selectedAtt1 && selectedAtt1 !== "-" && vis.attributes[0] !== selectedAtt1) {
+      return null;
+    }
+
+    if (selectedAtt2 && selectedAtt2 !== "-" && vis.attributes[1] !== selectedAtt2) {
+      return null;
+    }
+
+    if (selectedAtt3 && selectedAtt3 !== "-" && vis.attributes[2] !== selectedAtt3) {
+      return null;
     }
 
     return (
@@ -418,6 +535,32 @@ function VizFirst() {
 
   const generateChart = async (vis) => {
 
+    if (limit !== "" && !Number.isInteger(parseInt(limit))) {
+      Modal.error({
+        title: 'Invalid row limit!',
+        content: 'Please enter a valid integer value for the row limit.',
+      });
+      return;
+    }
+
+    const usedFilters = {};
+
+    for (let fullColumnName of Object.keys(filters)) {
+      const filter = filters[fullColumnName];
+
+      if (filter.type === "num" && filter.value !== "" && !Number.isInteger(parseInt(filter.value))) {
+        Modal.error({
+          title: 'Invalid filter value!',
+          content: 'Please enter a valid integer value for the filter.',
+        });
+        return;
+      }
+
+      if (filter.value !== "") {
+        usedFilters[fullColumnName] = filter;
+      }
+    }
+
     const key1 = vis.key1;
     const key2 = vis.key2;
     const attributes = vis.attributes;
@@ -427,7 +570,9 @@ function VizFirst() {
     const formData = {
       pattern,
       tables: [selectedTable],
-      columns: []
+      columns: [],
+      filters: usedFilters,
+      limit: limit === "" ? -1 : parseInt(limit)
     };
 
     if (vis.key2) {
@@ -539,6 +684,349 @@ function VizFirst() {
     )
   };
 
+  const generateColumnOptionComponent = () => {
+    const key1s = ["-"];
+
+    results.forEach((res) => {
+      if (!key1s.includes(res.key1)) {
+        key1s.push(res.key1);
+      }
+    });
+
+    const key2s = ["-"];
+
+    results.forEach((res) => {
+      if (res.key2 && !key2s.includes(res.key2)) {
+        key2s.push(res.key2);
+      }
+    });
+
+    const attributes = ["-"];
+
+    results.forEach((res) => {
+      res.attributes.forEach((attr) => {
+        if (!attributes.includes(attr)) {
+          attributes.push(attr);
+        }
+      });
+    });
+
+    console.log("Selected Chart Type:" + selectedChartType);
+    console.log("Key 1s:" + key1s);
+    console.log("Key 2s:" + key2s);
+    console.log("Attributes:" + attributes);
+
+    switch (selectedChartType) {
+      case "bar":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (X-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "bubble":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (X-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectAtt1(key)}>
+                {attributes.filter((att) => att === "-" ? true : selectedAtt2 !== att && selectedAtt3 !== att).map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 2 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt2(att)}>
+                {attributes.filter((att) => att === "-" ? true : selectedAtt1 !== att && selectedAtt3 !== att).map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 3 (Size): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt3(att)}>
+                {attributes.filter((att) => att === "-" ? true : selectedAtt1 !== att && selectedAtt2 !== att).map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "calendar":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "choropleth":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Value): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "scatter":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (X-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.filter((att) => att === "-" ? true : selectedAtt2 !== att).map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 2 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt2(att)}>
+                {attributes.filter((att) => att === "-" ? true : selectedAtt1 !== att).map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "word-cloud":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Size): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "line":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Line): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (X-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "grouped-bar":
+      case "stacked-bar":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Group): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (X-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Y-Axis): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "spider":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Ring): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (Spoke): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Value): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "circle-packing":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Group): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (Circle): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Size): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "hierarchy-tree":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Node): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (Child): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "treemap":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Group): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (Child): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Size): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+      case "chord":
+      case "sankey":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 1 (Start): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey1(key)}>
+                {key1s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Key 2 (End): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(key) => handleSelectKey2(key)}>
+                {key2s.map((key, index) => (
+                  <Select.Option key={index} value={key}>{key}</Select.Option>
+                ))}
+              </Select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
+              <h3><strong>Attribute 1 (Size): </strong></h3>
+              <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
+                {attributes.map((att, index) => (
+                  <Select.Option key={index} value={att}>{att}</Select.Option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        );
+    }
+  };
+
   const clearOutput = () => {
     setShownTables(tableMetadata.map((table) => table.tableName));
     setPattern("");
@@ -548,6 +1036,13 @@ function VizFirst() {
     setSelectedTable("");
     setChartData([]);
     setGraph(null);
+    setSelectedKey1("-");
+    setSelectedKey2("-");
+    setSelectedAtt1("-");
+    setSelectedAtt2("-");
+    setSelectedAtt3("-");
+    setFilters({});
+    setLimit("");
   };
 
   const clearGraph = () => {
@@ -571,74 +1066,85 @@ function VizFirst() {
         <Content>
           <div style={{ display: "flex", height: "95vh", width: "100%", backgroundColor: "#001529", justifyContent: "center" }}>
             <Flex align="flex-start" gap="small" style={{ backgroundColor: "#fff", width: "98%", height: "95%", borderRadius: "5px" }}>
-              <div style={{
-                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
-                // borderRight: "5px solid #ccc", 
-                justifyContent: "center"
-              }}>
+              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", padding: "1%", justifyContent: "center" }}>
                 <div style={{ display: "flex", paddingTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Visualisation Types</strong></h2>
                 </div>
-                {chartTypes.map((vis) => (
-                  <div key={vis.id} color="#000">
-                    {generateVisOptionComponent(vis)}
-                  </div>
-                ))}
+                <div style={{ height: "95%", overflowY: "auto", paddingRight: "2%" }}>
+                  {chartTypes.map((vis) => (
+                    <div key={vis.id}>
+                      {generateVisOptionComponent(vis)}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div style={{
-                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
-                // borderRight: "5px solid #ccc" 
-              }}>
+              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", padding: "1%", justifyContent: "center" }}>
                 <div style={{ display: "flex", paddingTop: "10px", justifyContent: "center" }}>
                   <h2><strong>Tables</strong></h2>
                 </div>
-                <Spin spinning={tableMetadata.length === 0}>
-                  {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
-                    <div key={table.tableName} style={{ padding: "10px" }}>
-                      <Checkbox checked={selectedTable === table.tableName} onChange={(e) => setSelectedTable(e.target.checked ? table.tableName : "")}>
-                        <h2 style={{ borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
-                      </Checkbox>
-                      {table.columns.map((column, index) => (
-                        <div key={index}>
-                          {generateColumnComponent(table, column)}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </Spin>
+                <div style={{ height: "95%", overflowY: "auto", paddingRight: "2%" }}>
+                  <Spin spinning={tableMetadata.length === 0}>
+                    {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
+                      <div key={table.tableName} style={{ padding: "10px" }}>
+                        <Checkbox checked={selectedTable === table.tableName} onChange={(e) => setSelectedTable(e.target.checked ? table.tableName : "")}>
+                          <h2 style={{ borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
+                        </Checkbox>
+                        {table.columns.map((column, index) => (
+                          <div key={index}>
+                            {generateColumnComponent(table, column)}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </Spin>
+                </div>
               </div>
 
-              <div style={{
-                minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%",
-                // borderRight: "5px solid #ccc", 
-                marginRight: "20px"
-              }}>
-                <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "20px", marginTop: "10px" }}>
+              <div style={{ minWidth: "20vw", maxWidth: "20vw", height: "100%", overflowY: "auto", padding: "1%", marginRight: "20px" }}>
+                <div style={{ display: "flex", flexDirection: "row", alignItems: "center", marginBottom: "10px", marginTop: "10px" }}>
                   <button style={{ marginRight: "5px", width: "50%" }} className="btn" onClick={handleRenderButtonClick}>GENERATE</button>
                   <button style={{ width: "50%" }} className="btn red-btn" onClick={clearOutput}>CLEAR</button>
                 </div>
                 <Spin spinning={loading}>
-                  <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ marginBottom: "10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                     <h2 style={{ marginBottom: "10px" }}><strong>Pattern Detected</strong></h2>
                     {generatePatternComponent(pattern)}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", marginTop: "10px", alignItems: "center", justifyContent: "center" }}>
-                    <h2><strong>Visualisation Options</strong></h2>
-                    {results.length === 0 && pattern !== "" ? generateVisualisationComponent(null) : results.map((res, index) => (
-                      <div key={index} style={{ width: "100%" }} >
-                        {generateVisualisationComponent(res)}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+                    <h2 style={{ marginBottom: "10px" }}><strong>Column Options</strong></h2>
+                    {results.length > 0 && generateColumnOptionComponent()}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+                    <h2><strong>Filters</strong></h2>
+                    {filters && Object.keys(filters).map((fullColumnName, index) => (
+                      <div key={index} style={{ width: "100%" }}>
+                        {generateFilterComponent(fullColumnName, filters[fullColumnName])}
                       </div>
                     ))}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", borderTop: "1px solid #ccc", paddingTop: "10px" }}>
+                    <h2><strong>Limit Row Count</strong></h2>
+                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "5px", width: "100%" }}>
+                      <InputNumber
+                        style={{ width: "100%" }}
+                        value={limit}
+                        placeholder="Enter max no. rows..."
+                        onChange={(value) => setLimit(value)}
+                      />
+                    </div>
                   </div>
                 </Spin>
               </div>
 
-              <div style={{ height: "100%", marginTop: "20px" }}>
-                <h1><strong>Result Table</strong></h1>
-                <div style={{ height: "90vh", padding: "1%", overflowY: "auto" }}>
-                  <p>Number of rows: {chartData.length}</p>
-                  {chartData.length !== 0 && <Table dataSource={chartData} columns={columns} />}
+              <div style={{ display: "flex", flexDirection: "column", marginTop: "30px", alignItems: "center", width: "100%", paddingRight: "1%", height: "95%", overflowY: "auto" }}>
+                <h2><strong>Visualisation Options</strong></h2>
+                <div style={{ height: "95%", width: "100%", overflowY: "auto", paddingRight: "2%" }}>
+                  {results.length > 0 && results.map((res, index) => (
+                    <div key={index} >
+                      {generateVisResultsComponent(res)}
+                    </div>
+                  ))}
                 </div>
               </div>
 
