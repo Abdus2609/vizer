@@ -33,8 +33,6 @@ function HierarchyTree5({ data, categoryFields }) {
 			}
 		});
 
-		// pks = pks.filter((_item, index) => index < 10);
-
 		pks.forEach(key1 => {
 			transformedData.push({
 				name: key1,

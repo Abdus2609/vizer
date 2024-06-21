@@ -36,8 +36,6 @@ function PieChart5({ data, categoryField, valueField }) {
         series.appear(1000, 100);
 
         return () => {
-            // console.log("In chart");
-            // console.log(data);
             chart.dispose();
             root.dispose();
         };

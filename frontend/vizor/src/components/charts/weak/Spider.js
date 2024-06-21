@@ -38,8 +38,6 @@ function Spider({ data, categoryFields, valueField }) {
       groupedData[item[categoryFields[0]]].push(item);
     });
 
-    // console.log(groupedData);
-
     Object.keys(groupedData).forEach((key, index) => {
 
       if (index >= 10 && truncate) {

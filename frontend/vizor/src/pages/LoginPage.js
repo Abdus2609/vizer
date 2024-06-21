@@ -23,8 +23,6 @@ function LoginPage() {
 			const options = [];
 
 			snapshot.forEach((doc) => {
-				// console.log(doc.data());
-				// console.log(doc.data().value);
 				options.push({ value: doc.data().value });
 			})
 
@@ -87,7 +85,6 @@ function LoginPage() {
 				content: 'Connected to database successfully.',
 				onOk: () => window.location.href = '/data-first'
 			});
-			// window.location.href = '/home';
 		} catch (error) {
 			Modal.error({
 				title: 'Error!',

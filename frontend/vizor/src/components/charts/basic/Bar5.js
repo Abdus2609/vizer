@@ -7,9 +7,6 @@ function Bar5({ data, categoryField, valueField }) {
 
 	useEffect(() => {
 
-		// console.log(categoryField);
-		// console.log(valueField);
-
 		var root = am5.Root.new('bar-chart');
 
 		root.setThemes([

@@ -22,7 +22,6 @@ function NetworkChart({ data, categoryFields }) {
         let key1Count = 0;
         let key2Count = 0;
     
-        // Traverse the list and accumulate sums and counts
         data.forEach(obj => {
             if (obj[categoryFields[0]] !== undefined) {
                 key1Sum += obj[categoryFields[0]];
@@ -34,7 +33,6 @@ function NetworkChart({ data, categoryFields }) {
             }
         });
     
-        // Calculate averages
         const key1Average = key1Count ? key1Sum / key1Count : 0;
         const key2Average = key2Count ? key2Sum / key2Count : 0;
 

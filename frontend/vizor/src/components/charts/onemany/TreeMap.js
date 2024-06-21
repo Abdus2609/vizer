@@ -28,16 +28,12 @@ function TreeMap({ data, categoryFields, valueField }) {
 		else
 			pks = pks.filter((_item, index) => index < 100);
 
-		// console.log(pks);
-
 		pks.forEach(key1 => {
 			transformedData.push({
 				name: key1,
 				children: []
 			})
 		});
-
-		// console.log(transformedData);
 
 		data.forEach(item => {
 			transformedData.forEach(group => {

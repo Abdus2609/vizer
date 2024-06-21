@@ -289,9 +289,11 @@ function DataFirst() {
     );
 
     const lexComparators = (
-      <Select defaultValue="=" style={{ width: "60px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
+      <Select defaultValue="=" style={{ width: "100px" }} onChange={(comp) => handleFilterComparatorChange(fullColumnName, comp)}>
         <Select.Option value="=">{"="}</Select.Option>
         <Select.Option value="!=">{"!="}</Select.Option>
+        <Select.Option value="LIKE">{"LIKE"}</Select.Option>
+        <Select.Option value="NOT LIKE">{"NOT LIKE"}</Select.Option>
       </Select>
     );
 
