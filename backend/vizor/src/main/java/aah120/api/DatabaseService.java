@@ -1012,10 +1012,16 @@ public class DatabaseService {
       }
     } else if (MANY_MANY_VIS_TYPES.contains(vis)) {
       pattern = "many-many";
+      String title = "";
 
       switch (vis) {
+        case "network":
+          title = pks.get(0).getName() + " to " + pks.get(1).getName();
+          options.add(new VisualisationOption("network", "Network Chart", pks.get(0).getName(), pks.get(1).getName(),
+              List.of(), title));
+          break;
         case "sankey":
-          String title = pks.get(0).getName() + " to " + pks.get(1).getName() + ", sized by "
+          title = pks.get(0).getName() + " to " + pks.get(1).getName() + ", sized by "
               + atts.get(0).getName();
           for (Column att : atts) {
             if (isScalarType(att.getType())) {
@@ -1213,23 +1219,46 @@ public class DatabaseService {
       }
     } else if (ONE_MANY_VIS_TYPES.contains(id)) {
       for (TableMetadata table : databaseMetadata) {
-        List<Column> columns = table.getColumns();
-        int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
-        int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
 
-        List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
-            .map(Column::getType).toList();
+        List<ForeignKey> fks = table.getForeignKeys();
+        List<String> fkParents = fks.stream().map(ForeignKey::getParentTable).distinct().toList();
 
-        if (isOneManyRelationship(numPks, numPureFks, List.of(table), columns)) {
-          if (id.equals("hierarchy-tree")) {
-            result.add(table.getTableName());
-          } else if (id.equals("treemap")) {
-            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
-              result.add(table.getTableName());
+        for (String parent : fkParents) {
+          List<Column> columns = new ArrayList<>();
+          for (Column col : table.getColumns()) {
+            if (!col.isForeignKey() || (col.isPrimaryKey() && col.isForeignKey())) {
+              columns.add(col);
+              continue;
             }
-          } else if (id.equals("circle-packing")) {
-            if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+
+            if (col.isForeignKey() && !col.isPrimaryKey()) {
+              ForeignKey currFk = fks.stream().filter(fk -> fk.getChildColumn().equals(col.getName())).findFirst()
+                  .get();
+              if (currFk.getParentTable().equals(parent)) {
+                columns.add(col);
+              }
+            }
+          }
+
+          int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
+          int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
+
+          List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
+              .map(Column::getType).toList();
+
+          if (isOneManyRelationship(numPks, numPureFks, List.of(table), columns)
+              && !result.contains(table.getTableName())) {
+            System.out.println(columns.stream().map(Column::getName).toList());
+            if (id.equals("hierarchy-tree")) {
               result.add(table.getTableName());
+            } else if (id.equals("treemap")) {
+              if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+                result.add(table.getTableName());
+              }
+            } else if (id.equals("circle-packing")) {
+              if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
+                result.add(table.getTableName());
+              }
             }
           }
         }
@@ -1242,8 +1271,10 @@ public class DatabaseService {
         List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
             .map(Column::getType).toList();
 
-        if (isManyManyRelationship(numPks, List.of(table))) {
-          if (id.equals("sankey")) {
+        if (isManyManyRelationship(numPks, List.of(table)) && !isReflexive(List.of(table))) {
+          if (id.equals("network")) {
+            result.add(table.getTableName());
+          } else if (id.equals("sankey")) {
             if (attTypes.stream().filter(this::isScalarType).count() >= 1) {
               result.add(table.getTableName());
             }
