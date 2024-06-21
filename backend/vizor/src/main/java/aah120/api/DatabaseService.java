@@ -335,13 +335,7 @@ public class DatabaseService {
         if (type.equals("num")) {
           sb.append(" AND ").append(columnName).append(" ").append(comp).append(" ").append(val);
         } else if (type.equals("lex")) {
-          if (comp.equals("=")) {
-            sb.append(" AND ").append(columnName).append(" ILIKE '").append(val).append("'");
-          } else if (comp.equals("!=")) {
-            sb.append(" AND ").append(columnName).append(" NOT ILIKE '").append(val).append("'");
-          } else {
-            sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
-          }
+          sb.append(" AND ").append(columnName).append(" ").append(comp).append(" '").append(val).append("'");
         }
       }
     }
