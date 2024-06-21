@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -39,7 +40,7 @@ public class DatabaseService {
   List<String> BASIC_VIS_TYPES = List.of("bar", "calendar", "scatter", "bubble", "choropleth", "word-cloud");
   List<String> WEAK_VIS_TYPES = List.of("line", "stacked-bar", "grouped-bar", "spider");
   List<String> ONE_MANY_VIS_TYPES = List.of("treemap", "hierarchy-tree", "circle-packing");
-  List<String> MANY_MANY_VIS_TYPES = List.of("sankey");
+  List<String> MANY_MANY_VIS_TYPES = List.of("sankey", "network");
   List<String> REFLEXIVE_VIS_TYPES = List.of("chord");
 
   private final DatabaseConnectionManager connectionManager;
@@ -135,13 +136,14 @@ public class DatabaseService {
     for (TableMetadata table : databaseMetadata) {
       if (tableNames.contains(table.getTableName())) {
         tables.add(table);
-        for (Column column : table.getColumns()) {
-          if (columnNames.contains(column.getName())) {
-            columns.add(column);
-          }
-        }
       }
     }
+
+    // currently only supporting single-table queries
+    TableMetadata table = tables.get(0);
+    columns.addAll(table.getColumns().stream().filter(col -> col.isPrimaryKey()).toList());
+    columns.addAll(table.getColumns().stream()
+        .filter(col -> !columns.contains(col) && columnNames.contains(col.getName())).toList());
 
     int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
     int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
@@ -157,15 +159,9 @@ public class DatabaseService {
     List<String> chosenFkNames = chosenFks.stream().map(Column::getName).toList();
     List<String> chosenAttNames = chosenAtts.stream().map(Column::getName).toList();
 
-    // List<String> chosenPkTypes =
-    // chosenPks.stream().map(Column::getType).toList();
-    // List<String> chosenFkTypes =
-    // chosenFks.stream().map(Column::getType).toList();
     List<String> chosenAttTypes = chosenAtts.stream().map(Column::getType).toList();
 
-    if (numAtts == 0) {
-      pattern = "none";
-    } else if (numPks == 0 && numPureFks == 0) {
+    if (numPks == 0 && numPureFks == 0) {
       pattern = "none";
     } else if (isBasicEntity(numPks, totalFks, tables, columns)) {
       pattern = "basic";
@@ -195,18 +191,27 @@ public class DatabaseService {
       pattern = "weak";
 
       String key1 = String.join(" | ", chosenFkNames);
-      String key2 = chosenPks.stream().filter(pk -> !pk.isForeignKey()).map(Column::getName).findFirst().get();
+
+      String key2 = "";
+
+      Optional<String> key2Opt = chosenPks.stream().filter(pk -> !pk.isForeignKey()).map(Column::getName).findFirst();
+
+      if (key2Opt.isPresent()) {
+        key2 = key2Opt.get();
+      }
+
+      boolean completeWeak = isCompleteWeak(chosenPkNames, chosenFkNames, tableNames);
 
       if (line(chosenPks, chosenAttTypes)) {
         visOptions.add(new VisualisationOption("line", "Line Chart", key1, key2, chosenAttNames, ""));
       }
-      if (isCompleteWeak(chosenPkNames, chosenFkNames, tableNames) && stackedBar(chosenAttTypes)) {
+      if (completeWeak && stackedBar(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("stacked-bar", "Stacked Bar Chart", key1, key2, chosenAttNames, ""));
       }
       if (groupedBar(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("grouped-bar", "Grouped Bar Chart", key1, key2, chosenAttNames, ""));
       }
-      if (isCompleteWeak(chosenPkNames, chosenFkNames, tableNames) && spider(chosenAttTypes)) {
+      if (completeWeak && spider(chosenAttTypes)) {
         visOptions.add(new VisualisationOption("spider", "Spider Chart", key1, key2, chosenAttNames, ""));
       }
     } else if (isOneManyRelationship(numPks, numPureFks, tables, columns)) {
@@ -236,7 +241,12 @@ public class DatabaseService {
         pattern = "many-many";
 
         if (sankey(chosenAttTypes)) {
-          visOptions.add(new VisualisationOption("sankey", "Sankey", chosenPkNames.get(0), chosenPkNames.get(1),
+          visOptions.add(new VisualisationOption("sankey", "Sankey Diagram", chosenPkNames.get(0), chosenPkNames.get(1),
+              chosenAttNames, ""));
+        }
+
+        if (network(chosenAttTypes)) {
+          visOptions.add(new VisualisationOption("network", "Network Chart", chosenPkNames.get(0), chosenPkNames.get(1),
               chosenAttNames, ""));
         }
       }
@@ -251,17 +261,19 @@ public class DatabaseService {
 
       String queryStr = "";
 
+      List<String> colNames = columns.stream().map(Column::getName).toList();
+
       if (pattern.equals("basic")) {
-        queryStr = generateBasicQuery(tableNames, columnNames, numPks, chosenPkNames, chosenFkNames,
+        queryStr = generateBasicQuery(tableNames, colNames, numPks, chosenPkNames, chosenFkNames,
             chosenAttNames, filters, limit);
       } else if (pattern.equals("weak")) {
-        queryStr = generateWeakQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+        queryStr = generateWeakQuery(tableNames, colNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
             limit);
       } else if (pattern.equals("one-many")) {
-        queryStr = generateOneManyQuery(tableNames, columnNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
+        queryStr = generateOneManyQuery(tableNames, colNames, chosenPkNames, chosenFkNames, chosenAttNames, filters,
             limit);
       } else {
-        queryStr = generateRegularQuery(tableNames, columnNames, filters, limit);
+        queryStr = generateRegularQuery(tableNames, colNames, filters, limit);
       }
 
       System.out.println(queryStr);
@@ -356,11 +368,17 @@ public class DatabaseService {
     if (numPks == 0) {
       sb.append(String.join(" || ' | ' || ", chosenFkNames)).append(" AS ").append("\"")
           .append(String.join(" | ", chosenFkNames)).append("\"");
-      sb.append(", ").append(
-          String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+
+      if (chosenAttNames.size() > 0) {
+        sb.append(", ").append(
+            String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+      }
     } else {
       sb.append(String.join(", ", chosenPkNames));
-      sb.append(", ").append(String.join(", ", chosenAttNames));
+
+      if (chosenAttNames.size() > 0) {
+        sb.append(", ").append(String.join(", ", chosenAttNames));
+      }
     }
 
     sb.append(" FROM ");
@@ -414,10 +432,17 @@ public class DatabaseService {
     sb.append("SELECT ");
     sb.append(String.join(" || ' | ' || ", chosenFkNames)).append(" AS ").append("\"")
         .append(String.join(" | ", chosenFkNames)).append("\"");
-    sb.append(", ")
-        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
-    sb.append(", ").append(
-        String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+
+    List<String> chosenPurePks = chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList();
+    if (chosenPurePks.size() > 0) {
+      sb.append(", ")
+          .append(String.join(", ", chosenPurePks));
+    }
+
+    if (chosenAttNames.size() > 0) {
+      sb.append(", ").append(
+          String.join(", ", chosenAttNames.stream().map(att -> "SUM(" + att + ")" + " AS " + att).toList()));
+    }
 
     sb.append(" FROM ");
     sb.append(String.join(", ", tableNames));
@@ -447,11 +472,18 @@ public class DatabaseService {
     }
 
     sb.append(" GROUP BY ")
-        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
-        .append(", ").append(String.join(", ", chosenFkNames));
+        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
+
+    if (chosenFkNames.size() > 0) {
+      sb.append(", ").append(String.join(", ", chosenFkNames));
+    }
+
     sb.append(" ORDER BY ")
-        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()))
-        .append(", ").append(String.join(", ", chosenFkNames));
+        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
+
+    if (chosenFkNames.size() > 0) {
+      sb.append(", ").append(String.join(", ", chosenFkNames));
+    }
 
     if (limit != -1) {
       sb.append(" LIMIT ").append(limit);
@@ -472,11 +504,20 @@ public class DatabaseService {
     List<String> chosenPureFks = chosenFkNames.stream().filter(fk -> !chosenPkNames.contains(fk)).toList();
 
     sb.append("SELECT ");
-    sb.append(String.join(" || ' | ' || ", chosenPureFks)).append(" AS ")
-        .append("\"").append(String.join(" | ", chosenPureFks)).append("\"");
-    sb.append(", ").append(String.join(", ", chosenPkNames));
-    sb.append(", ").append(
-        String.join(", ", chosenAttNames.stream().map(att -> att + " AS " + att).toList()));
+
+    if (chosenPureFks.size() > 0) {
+      sb.append(String.join(" || ' | ' || ", chosenPureFks)).append(" AS ")
+          .append("\"").append(String.join(" | ", chosenPureFks)).append("\"");
+    }
+
+    if (chosenPkNames.size() > 0) {
+      sb.append(", ").append(String.join(", ", chosenPkNames));
+    }
+
+    if (chosenAttNames.size() > 0) {
+      sb.append(", ").append(
+          String.join(", ", chosenAttNames.stream().map(att -> att + " AS " + att).toList()));
+    }
 
     sb.append(" FROM ");
     sb.append(String.join(", ", tableNames));
@@ -592,26 +633,23 @@ public class DatabaseService {
     return attTypes.size() == 1 && isScalarType(attTypes.get(0));
   }
 
+  private boolean network(List<String> attTypes) {
+    return attTypes.size() >= 0;
+  }
+
   private boolean isBasicEntity(int numPks, int totalFks, List<TableMetadata> tables, List<Column> columns) {
 
-    if (numPks > 1) {
-      return false;
-    }
+    TableMetadata table = tables.get(0);
 
-    if (totalFks == 0) {
+    List<String> pkFks = table.getColumns().stream().filter(col -> col.isPrimaryKey() && col.isForeignKey())
+        .map(Column::getName).toList();
+
+    // primary key inherited
+    if (pkFks.size() == 1 && pkFks.containsAll(table.getPrimaryKeys()) || table.getPrimaryKeys().size() == 0) {
       return true;
     }
 
-    // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
-    TableMetadata table = tables.get(0);
-
-    boolean inheritedPk = table.getForeignKeys().stream().map(ForeignKey::getChildColumn).toList()
-        .containsAll(table.getPrimaryKeys());
-
-    List<String> chosenFkNotPks = columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey())
-        .map(Column::getName).toList();
-
-    if ((inheritedPk && chosenFkNotPks.size() == 0) || table.getPrimaryKeys().size() == 0) {
+    if (totalFks == 0) {
       return true;
     }
 
@@ -623,11 +661,17 @@ public class DatabaseService {
     // assume only single table used - NEED TO UPDATE FOR MULTIPLE TABLES
     TableMetadata table = tables.get(0);
 
-    List<String> bothPkAndFk = columns.stream().filter(col -> col.isPrimaryKey() && col.isForeignKey())
-        .map(Column::getName).toList();
+    List<Column> bothPkAndFk = table.getColumns().stream().filter(col -> col.isPrimaryKey() && col.isForeignKey())
+        .toList();
 
     if (bothPkAndFk.size() == 0) {
       return false;
+    }
+
+    for (Column pkFk : bothPkAndFk) {
+      if (!columns.contains(pkFk)) {
+        columns.add(pkFk);
+      }
     }
 
     // parent pks NEED to be subset of all pks else reflexive many-many
@@ -635,8 +679,10 @@ public class DatabaseService {
       return false;
     }
 
+    List<String> bothPkAndFkNames = bothPkAndFk.stream().map(Column::getName).toList();
+
     List<ForeignKey> chosenPkFks = table.getForeignKeys().stream()
-        .filter(fk -> bothPkAndFk.contains(fk.getChildColumn())).toList();
+        .filter(fk -> bothPkAndFkNames.contains(fk.getChildColumn())).toList();
 
     // check they all have same parent (within single foreign key)
     if (chosenPkFks.stream().map(ForeignKey::getParentTable).distinct().count() == 1) {
@@ -711,8 +757,11 @@ public class DatabaseService {
     sb.append("SELECT ");
     sb.append(String.join(" || ' | ' || ", chosenFkNames)).append(" AS ").append("\"")
         .append(String.join(" | ", chosenFkNames)).append("\"");
-    sb.append(", ")
-        .append(String.join(", ", chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList()));
+    List<String> chosenPurePks = chosenPkNames.stream().filter(pk -> !chosenFkNames.contains(pk)).toList();
+    if (chosenPurePks.size() > 0) {
+      sb.append(", ")
+          .append(String.join(", ", chosenPurePks));
+    }
 
     sb.append(" FROM ");
     sb.append(String.join(", ", tableNames));
@@ -810,20 +859,19 @@ public class DatabaseService {
           }
           break;
         case "scatter":
-          for (int i = 0; i < atts.size() - 1; i++) {
+          for (int i = 0; i < atts.size(); i++) {
             for (int j = 0; j < atts.size(); j++) {
               if (isScalarType(atts.get(i).getType()) && isScalarType(atts.get(j).getType()) && i != j) {
                 String title = atts.get(i).getName() + " vs " + atts.get(j).getName();
                 options.add(new VisualisationOption("scatter", "Scatter Chart", keyName, "",
                     List.of(atts.get(i).getName(), atts.get(j).getName()), title));
               }
-
             }
           }
           break;
         case "bubble":
-          for (int i = 0; i < atts.size() - 2; i++) {
-            for (int j = 0; j < atts.size() - 1; j++) {
+          for (int i = 0; i < atts.size(); i++) {
+            for (int j = 0; j < atts.size(); j++) {
               for (int k = 0; k < atts.size(); k++) {
                 if (isScalarType(atts.get(i).getType()) && isScalarType(atts.get(j).getType())
                     && isScalarType(atts.get(k).getType()) && i != j && j != k && i != k) {
@@ -967,7 +1015,7 @@ public class DatabaseService {
 
       switch (vis) {
         case "sankey":
-          String title = "Sankey Diagram: " + pks.get(0).getName() + " to " + pks.get(1).getName() + ", sized by "
+          String title = pks.get(0).getName() + " to " + pks.get(1).getName() + ", sized by "
               + atts.get(0).getName();
           for (Column att : atts) {
             if (isScalarType(att.getType())) {
@@ -1086,12 +1134,10 @@ public class DatabaseService {
 
     if (BASIC_VIS_TYPES.contains(id)) {
       for (TableMetadata table : databaseMetadata) {
-        List<Column> columns = table.getColumns();
+        List<Column> columns = table.getColumns().stream().filter(col -> !(col.isForeignKey() && !col.isPrimaryKey()))
+            .toList();
         int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
-        // int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() &&
-        // !col.isPrimaryKey()).count();
         int totalFks = (int) columns.stream().filter(col -> col.isForeignKey() && col.isPrimaryKey()).count();
-        // int numAtts = columns.size() - numPks - numPureFks;
 
         Column pk = columns.stream().filter(Column::isPrimaryKey).findFirst().get();
         List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
@@ -1170,9 +1216,6 @@ public class DatabaseService {
         List<Column> columns = table.getColumns();
         int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
         int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
-        // int totalFks = (int) columns.stream().filter(col ->
-        // col.isForeignKey()).count();
-        // int numAtts = columns.size() - numPks - numPureFks;
 
         List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
             .map(Column::getType).toList();
@@ -1195,11 +1238,6 @@ public class DatabaseService {
       for (TableMetadata table : databaseMetadata) {
         List<Column> columns = table.getColumns();
         int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
-        // int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() &&
-        // !col.isPrimaryKey()).count();
-        // int totalFks = (int) columns.stream().filter(col ->
-        // col.isForeignKey()).count();
-        // int numAtts = columns.size() - numPks - numPureFks;
 
         List<String> attTypes = columns.stream().filter(col -> !col.isPrimaryKey() && !col.isForeignKey())
             .map(Column::getType).toList();
