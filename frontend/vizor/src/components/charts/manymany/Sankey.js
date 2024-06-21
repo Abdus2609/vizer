@@ -47,8 +47,6 @@ function Sankey({ data, categoryFields, valueField }) {
 
 		chart.data = truncatedData;
 
-		chart.data = truncatedData;
-
 		chart.dataFields.fromName = categoryFields[0];
 		chart.dataFields.toName = categoryFields[1];
 		chart.dataFields.value = valueField;

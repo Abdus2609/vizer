@@ -28,7 +28,7 @@ function CirclePacking({ data, categoryFields, valueField }) {
 		if (truncate)
 			pks = pks.filter((_item, index) => index < 20);
 		else
-			pks = pks.filter((_item, index) => index < 100);
+			pks = pks.filter((_item, index) => index < 50);
 
 		// console.log(pks);
 
@@ -44,7 +44,7 @@ function CirclePacking({ data, categoryFields, valueField }) {
 		data.forEach(item => {
 			transformedData.forEach(group => {
 				if (group.name === item[categoryFields[0]]) {
-					if ((!truncate && group.children.length < 100) || (truncate && group.children.length < 20))
+					if ((!truncate && group.children.length < 50) || (truncate && group.children.length < 20))
 						group.children.push({
 							name: item[categoryFields[1]],
 							value: item[valueField]
@@ -93,7 +93,7 @@ function CirclePacking({ data, categoryFields, valueField }) {
 			<div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "50px", backgroundColor: "#ccc", paddingTop: "10px", borderRadius: "10px" }}>
 				<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
 					<p><strong>Can't see your chart/seeing too much?</strong></p>
-					<p>Try adding a filter, a limit, or press TRUNCATE to enforce the proposed cardinality limit: <strong>20</strong>. A cardinality limit of 100 has already been auto-enforced for chart processing safety.</p>
+					<p>Try adding a filter, a limit, or press TRUNCATE to enforce the proposed cardinality limit: <strong>20</strong>. A cardinality limit of 50 has already been auto-enforced for chart processing safety.</p>
 				</div>
 				{truncate ? <button className='btn red-btn' onClick={() => setTruncate(false)}>USE ALL DATA</button> : <button className='btn' onClick={() => setTruncate(true)}>TRUNCATE</button>}
 			</div>

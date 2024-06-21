@@ -2,21 +2,49 @@ import React, { useState, useEffect } from 'react';
 import * as am4core from '@amcharts/amcharts4/core';
 import * as am4charts from '@amcharts/amcharts4/charts';
 import am4themes_animated from '@amcharts/amcharts4/themes/animated';
+import { Select } from 'antd';
 
 am4core.useTheme(am4themes_animated);
 
 function Bar({ data, categoryField, valueField }) {
 
 	const [truncate, setTruncate] = useState(false);
+	const [order, setOrder] = useState('-');
+	const [isDate, setIsDate] = useState(false);
+
+	console.log(data);
 
 	useEffect(() => {
 
+		let chartData = [];
+
+		if (typeof data[0][valueField] === "string") {
+			setIsDate(true);
+		} else {
+			setIsDate(false);
+		}
+
+		data.forEach(item => {
+			chartData.push({
+				[categoryField]: item[categoryField],
+				[valueField]: new Date(item[valueField]).getTime()
+			});
+		});
+
 		var chart = am4core.create("bar-chart", am4charts.XYChart);
 
+		let sortedData = chartData.slice();
+
+		if (order === 'DESCENDING') {
+			sortedData.sort((a, b) => b[valueField] - a[valueField]);
+		} else if (order === 'ASCENDING') {
+			sortedData.sort((a, b) => a[valueField] - b[valueField]);
+		}
+
 		if (truncate) {
-			chart.data = data.filter((_item, index) => index < 100);
+			chart.data = sortedData.filter((_item, index) => index < 40);
 		} else {
-			chart.data = data;
+			chart.data = sortedData;
 		}
 
 		var categoryAxis = chart.xAxes.push(new am4charts.CategoryAxis());
@@ -32,7 +60,7 @@ function Bar({ data, categoryField, valueField }) {
 
 		var valueAxis = chart.yAxes.push(new am4charts.ValueAxis());
 		valueAxis.title.text = valueField;
-		const minimumValue = Math.min(...data.map(item => item[valueField]));
+		const minimumValue = Math.min(...chartData.map(item => item[valueField]));
 		valueAxis.min = minimumValue;
 		valueAxis.renderer.minWidth = 50;
 
@@ -63,11 +91,24 @@ function Bar({ data, categoryField, valueField }) {
 			chart.dispose();
 		}
 
-	}, [data, categoryField, valueField, truncate]);
+	}, [data, categoryField, valueField, truncate, order]);
 
 	return (
 		<>
-			<div id="bar-chart" style={{ width: "100%", height: "600px" }}></div>
+			<div id="bar-chart" style={{ width: "100%", height: "500px" }}></div>
+			<div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", backgroundColor: "#ccc", paddingTop: "10px", paddingBottom: "10px", borderRadius: "10px", marginBottom: "10px" }}>
+				<p style={{ paddingTop: "10px" }}>Order data by: </p>
+				<Select defaultValue="-" style={{ width: 150 }} onChange={value => setOrder(value)}>
+					<Select.Option value="-">-</Select.Option>
+					<Select.Option value="DESCENDING">DESCENDING</Select.Option>
+					<Select.Option value="ASCENDING">ASCENDING</Select.Option>
+				</Select>
+			</div>
+			{isDate &&
+				<div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", backgroundColor: "#ccc", paddingTop: "10px", borderRadius: "10px", marginBottom: "10px" }}>
+					<p><strong>NOTE:</strong> Because you have selected a temporal attribute, the value of each bar is the number of milliseconds from the Unix epoch (1st January, 1970).</p>
+				</div>
+			}
 			<div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "20px", backgroundColor: "#ccc", paddingTop: "10px", borderRadius: "10px" }}>
 				<p><strong>Can't see your chart/seeing too much?</strong> Try adding a filter, a limit, or press TRUNCATE to enforce the proposed cardinality limit: <strong>100</strong></p>
 				{truncate ? <button className='btn red-btn' onClick={() => setTruncate(false)}>USE ALL DATA</button> : <button className='btn' onClick={() => setTruncate(true)}>TRUNCATE</button>}

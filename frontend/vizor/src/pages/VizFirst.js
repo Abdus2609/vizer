@@ -15,6 +15,9 @@ import GroupedBar from "../components/charts/weak/GroupedBar";
 import Spider from "../components/charts/weak/Spider";
 import TreeMap from "../components/charts/onemany/TreeMap";
 import CirclePacking from "../components/charts/onemany/CirclePacking";
+import Calendar from "../components/charts/basic/Calendar";
+import HierarchyTree5 from "../components/charts/onemany/HierarchyTree5";
+import NetworkChart from "../components/charts/manymany/NetworkChart";
 
 function VizFirst() {
 
@@ -108,7 +111,13 @@ function VizFirst() {
       name: "Sankey Diagram",
       pattern: "many-many",
       image: "sankey.png"
-    }
+    },
+    {
+      id: "network",
+      name: "Network Chart",
+      pattern: "many-many",
+      image: "network.png"
+    },
   ];
 
   const [selectedChartType, setSelectedChartType] = useState("");
@@ -128,8 +137,6 @@ function VizFirst() {
   const [selectedAtt3, setSelectedAtt3] = useState("-");
   const [filters, setFilters] = useState({});
   const [limit, setLimit] = useState("");
-
-  // const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
 
   const pages = new Array(3).fill(null).map((_, index) => ({
     key: index + 1,
@@ -647,9 +654,14 @@ function VizFirst() {
         setGraph(<CirclePacking data={data} categoryFields={keys} valueField={attributes[0]} />);
         break;
       case "calendar":
+        setGraph(<Calendar data={data} categoryField={key1} valueField={attributes[0]} />);
+        break;
       case "hierarchy-tree":
-      case "heatmap":
+        setGraph(<HierarchyTree5 data={data} categoryFields={keys} />);
+        break;
       case "network":
+        setGraph(<NetworkChart data={chartData} categoryFields={keys} />);
+        break;
       default:
         setGraph(null);
         break;
@@ -771,7 +783,7 @@ function VizFirst() {
         return (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", paddingBottom: "10px", gap: "10px" }}>
             <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: "100%", gap: "10px" }}>
-              <h3><strong>Attribute 1 (Y-Axis): </strong></h3>
+              <h3><strong>Attribute 1 (Date): </strong></h3>
               <Select defaultValue="-" style={{ width: "50%" }} onChange={(att) => handleSelectAtt1(att)}>
                 {attributes.map((att, index) => (
                   <Select.Option key={index} value={att}>{att}</Select.Option>
@@ -1024,6 +1036,8 @@ function VizFirst() {
             </div>
           </div>
         );
+      default:
+        return;
     }
   };
 
@@ -1140,6 +1154,7 @@ function VizFirst() {
               <div style={{ display: "flex", flexDirection: "column", marginTop: "30px", alignItems: "center", width: "100%", paddingRight: "1%", height: "95%", overflowY: "auto" }}>
                 <h2><strong>Visualisation Options</strong></h2>
                 <div style={{ height: "95%", width: "100%", overflowY: "auto", paddingRight: "2%" }}>
+                  <p>NUMBER OF OPTIONS: {results.length}</p>
                   {results.length > 0 && results.map((res, index) => (
                     <div key={index} >
                       {generateVisResultsComponent(res)}

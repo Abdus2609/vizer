@@ -1,10 +1,7 @@
-// import Modal from "../components/Modal";
 import React, { useState, useEffect } from "react";
 import { Avatar, Checkbox, Flex, Layout, Menu, Spin, Table, Tooltip, Modal, Input, InputNumber, Select } from 'antd';
 import 'antd/dist/reset.css';
-// import NavBar from "../components/Navbar";
 import { Content, Header } from "antd/es/layout/layout";
-// import Bar5 from "../components/charts/basic/Bar5";
 import Bar from "../components/charts/basic/Bar";
 import Bubble from "../components/charts/basic/Bubble";
 import Scatter from "../components/charts/basic/Scatter";
@@ -18,8 +15,9 @@ import GroupedBar from "../components/charts/weak/GroupedBar";
 import Spider from "../components/charts/weak/Spider";
 import TreeMap from "../components/charts/onemany/TreeMap";
 import CirclePacking from "../components/charts/onemany/CirclePacking";
-// import { ref, getDownloadURL } from "firebase/storage";
-// import { storage } from "../firebaseconfig";
+import Calendar from "../components/charts/basic/Calendar";
+import NetworkChart from "../components/charts/manymany/NetworkChart";
+import HierarchyTree5 from "../components/charts/onemany/HierarchyTree5";
 
 function DataFirst() {
 
@@ -113,7 +111,13 @@ function DataFirst() {
       name: "Sankey Diagram",
       pattern: "many-many",
       image: "sankey.png"
-    }
+    },
+    {
+      id: "network",
+      name: "Network Chart",
+      pattern: "many-many",
+      image: "network.png"
+    },
   ];
 
   const [tableMetadata, setTableMetadata] = useState([]);
@@ -121,13 +125,11 @@ function DataFirst() {
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  // const [selectedChartType, setSelectedChartType] = useState('');
   const [visOptions, setVisOptions] = useState([]);
   const [pattern, setPattern] = useState('');
   const [graph, setGraph] = useState(null);
   const [limit, setLimit] = useState("");
   const [filters, setFilters] = useState({});
-  // const [loadingTables, setLoadingTables] = useState(false);
 
   const columns = chartData.length > 0 ? Object.keys(chartData[0]).map((column, index) => ({ title: column, dataIndex: column, key: index })) : [];
 
@@ -139,7 +141,6 @@ function DataFirst() {
   useEffect(() => {
 
     async function fetchTableMetadata() {
-      // setLoadingTables(true);
       const response = await fetch('http://localhost:8080/api/v1/tables/', {
         method: 'GET',
         headers: {
@@ -160,7 +161,6 @@ function DataFirst() {
       if (shownTables.length === 0) {
         setShownTables(data.map((table) => table.tableName));
       }
-      // setLoadingTables(false);
       console.log("Table Metadata:");
       console.log(data)
     }
@@ -497,7 +497,6 @@ function DataFirst() {
   const generateChart = (vis) => {
     setGraph(null);
     setModalVisible(true);
-    // setSelectedChartType(vis.name);
     console.log("Chart Data:");
     console.log(chartData);
 
@@ -514,6 +513,9 @@ function DataFirst() {
     switch (vis.id) {
       case "bar":
         setGraph(<Bar data={chartData} categoryField={key1} valueField={attributes[0]} />);
+        break;
+      case "calendar":
+        setGraph(<Calendar data={chartData} categoryField={key1} valueField={attributes[0]} />);
         break;
       case "bubble":
         setGraph(<Bubble data={chartData} categoryField={key1} valueFields={attributes} />);
@@ -551,10 +553,12 @@ function DataFirst() {
       case "circle-packing":
         setGraph(<CirclePacking data={chartData} categoryFields={keys} valueField={attributes[0]} />);
         break;
-      case "calendar":
       case "hierarchy-tree":
-      case "heatmap":
+        setGraph(<HierarchyTree5 data={chartData} categoryFields={keys} />);
+        break;
       case "network":
+        setGraph(<NetworkChart data={chartData} categoryFields={keys} />);
+        break;
       default:
         setGraph(null);
         break;
@@ -564,7 +568,6 @@ function DataFirst() {
   const clearOutput = () => {
     setChartData([]);
     setSelectedColumns([]);
-    // setSelectedChartType('');
     setPattern('');
     setVisOptions([]);
     setGraph(null);
@@ -601,8 +604,8 @@ function DataFirst() {
                 </div>
                 <div style={{ height: "95%", overflowY: "auto", paddingRight: "2%" }}>
                   <Spin spinning={tableMetadata.length === 0}>
-                    {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table) => (
-                      <div key={table.tableName} style={{ padding: "10px" }}>
+                    {tableMetadata.filter((table) => shownTables.includes(table.tableName)).map((table, index) => (
+                      <div key={index} style={{ padding: "10px" }}>
                         <h2 style={{ paddingBottom: "5px", borderBottom: "1px solid #ccc" }}>{table.tableName}</h2>
                         {table.columns.map((column, index) => (
                           <div key={index}>
