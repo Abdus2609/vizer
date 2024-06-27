@@ -128,7 +128,7 @@ function VizFirst() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [graph, setGraph] = useState(null);
-  const [chartData, setChartData] = useState([]);
+  // const [chartData, setChartData] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedKey1, setSelectedKey1] = useState("-");
   const [selectedKey2, setSelectedKey2] = useState("-");
@@ -610,7 +610,7 @@ function VizFirst() {
     }
 
     const data = await response.json();
-    setChartData(data);
+    // setChartData(data);
 
     setGraph(null);
     setModalVisible(true);
@@ -1050,7 +1050,7 @@ function VizFirst() {
     setLoading(false);
     setSelectedChartType("");
     setSelectedTable("");
-    setChartData([]);
+    // setChartData([]);
     setGraph(null);
     setSelectedKey1("-");
     setSelectedKey2("-");
