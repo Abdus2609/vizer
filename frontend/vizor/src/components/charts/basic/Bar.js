@@ -12,24 +12,22 @@ function Bar({ data, categoryField, valueField }) {
 	const [order, setOrder] = useState('-');
 	const [isDate, setIsDate] = useState(false);
 
-	console.log(data);
-
 	useEffect(() => {
 
 		let chartData = [];
 
 		if (typeof data[0][valueField] === "string") {
 			setIsDate(true);
+			data.forEach(item => {
+				chartData.push({
+					[categoryField]: item[categoryField],
+					[valueField]: new Date(item[valueField]).getTime()
+				});
+			});
 		} else {
 			setIsDate(false);
+			chartData = data.slice();
 		}
-
-		data.forEach(item => {
-			chartData.push({
-				[categoryField]: item[categoryField],
-				[valueField]: new Date(item[valueField]).getTime()
-			});
-		});
 
 		var chart = am4core.create("bar-chart", am4charts.XYChart);
 

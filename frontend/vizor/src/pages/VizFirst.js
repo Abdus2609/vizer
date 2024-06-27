@@ -662,7 +662,7 @@ function VizFirst() {
         setGraph(<HierarchyTree5 data={data} categoryFields={keys} />);
         break;
       case "network":
-        setGraph(<NetworkChart data={chartData} categoryFields={keys} />);
+        setGraph(<NetworkChart data={data} categoryFields={keys} />);
         break;
       default:
         setGraph(null);

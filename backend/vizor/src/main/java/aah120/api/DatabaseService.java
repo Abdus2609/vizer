@@ -148,7 +148,6 @@ public class DatabaseService {
     int numPks = (int) columns.stream().filter(Column::isPrimaryKey).count();
     int numPureFks = (int) columns.stream().filter(col -> col.isForeignKey() && !col.isPrimaryKey()).count();
     int totalFks = (int) columns.stream().filter(col -> col.isForeignKey()).count();
-    int numAtts = columns.size() - numPks - numPureFks;
 
     List<Column> chosenPks = columns.stream().filter(Column::isPrimaryKey).toList();
     List<Column> chosenFks = columns.stream().filter(col -> col.isForeignKey()).toList();
@@ -1242,7 +1241,6 @@ public class DatabaseService {
 
           if (isOneManyRelationship(numPks, numPureFks, List.of(table), columns)
               && !result.contains(table.getTableName())) {
-            System.out.println(columns.stream().map(Column::getName).toList());
             if (id.equals("hierarchy-tree")) {
               result.add(table.getTableName());
             } else if (id.equals("treemap")) {

@@ -10,9 +10,6 @@ function Choropleth({ data, categoryField, valueField }) {
 
 	useEffect(() => {
 
-		console.log(categoryField);
-		console.log(valueField);
-
 		var transformedData = [];
 
 		transformedData = data.map(item => {
