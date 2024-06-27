@@ -23,7 +23,7 @@ import aah120.dto.VFVisSelectRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://vizer-app.netlify.app")
 @RequestMapping("/api/v1")
 public class MainController {
 
