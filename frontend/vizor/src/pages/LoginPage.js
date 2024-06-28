@@ -46,7 +46,9 @@ function LoginPage() {
 				database
 			};
 
-			const response = await fetch('http://localhost:8080/api/v1/db-login', {
+			console.log(process.env.REACT_APP_SERVER_URL);
+
+			const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/db-login`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

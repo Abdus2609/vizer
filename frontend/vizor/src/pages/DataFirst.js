@@ -141,7 +141,7 @@ function DataFirst() {
   useEffect(() => {
 
     async function fetchTableMetadata() {
-      const response = await fetch('http://localhost:8080/api/v1/tables/', {
+      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/tables/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ function DataFirst() {
       }
     });
 
-    const response = await fetch('http://localhost:8080/api/v1/df-visualise/', {
+    const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/df-visualise/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

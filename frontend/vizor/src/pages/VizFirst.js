@@ -146,7 +146,7 @@ function VizFirst() {
   useEffect(() => {
 
     async function fetchTableMetadata() {
-      const response = await fetch('http://localhost:8080/api/v1/tables/', {
+      const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/tables/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ function VizFirst() {
     setSelectedAtt2("-");
     setSelectedAtt3("-");
 
-    const response = await fetch("http://localhost:8080/api/v1/vf-select/", {
+    const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/vf-select/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +237,7 @@ function VizFirst() {
       return;
     }
 
-    const response = await fetch("http://localhost:8080/api/v1/vf-generate/", {
+    const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/vf-generate/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -593,7 +593,7 @@ function VizFirst() {
       formData.columns.push(...attributes);
     }
 
-    const response = await fetch("http://localhost:8080/api/v1/vf-execute/", {
+    const response = await fetch(`${process.env.REACT_APP_SERVER_URL}/api/v1/vf-execute/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
