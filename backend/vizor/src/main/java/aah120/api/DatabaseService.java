@@ -275,7 +275,7 @@ public class DatabaseService {
         queryStr = generateRegularQuery(tableNames, colNames, filters, limit);
       }
 
-      System.out.println(queryStr);
+      // System.out.println(queryStr);
 
       PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
       ResultSet resultSet = preparedStatement.executeQuery();
@@ -303,7 +303,7 @@ public class DatabaseService {
   private String generateRegularQuery(List<String> tableNames, List<String> columnNames,
       Map<String, Map<String, String>> filters, int limit) {
 
-    System.out.println("Generating regular query");
+    // System.out.println("Generating regular query");
 
     StringBuilder sb = new StringBuilder();
 
@@ -352,7 +352,7 @@ public class DatabaseService {
       List<String> chosenPkNames, List<String> chosenFkNames, List<String> chosenAttNames,
       Map<String, Map<String, String>> filters, int limit) {
 
-    System.out.println("Generating basic query");
+    // System.out.println("Generating basic query");
 
     StringBuilder sb = new StringBuilder();
 
@@ -418,7 +418,7 @@ public class DatabaseService {
   private String generateWeakQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
       List<String> chosenFkNames, List<String> chosenAttNames, Map<String, Map<String, String>> filters, int limit) {
 
-    System.out.println("Generating weak query");
+    // System.out.println("Generating weak query");
 
     StringBuilder sb = new StringBuilder();
 
@@ -490,7 +490,7 @@ public class DatabaseService {
   private String generateOneManyQuery(List<String> tableNames, List<String> columnNames, List<String> chosenPkNames,
       List<String> chosenFkNames, List<String> chosenAttNames, Map<String, Map<String, String>> filters, int limit) {
 
-    System.out.println("Generating one-many query");
+    // System.out.println("Generating one-many query");
 
     StringBuilder sb = new StringBuilder();
 
@@ -767,7 +767,7 @@ public class DatabaseService {
 
     try (Connection connection = connectionManager.getConnection()) {
 
-      System.out.println(queryStr);
+      // System.out.println(queryStr);
 
       PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
       ResultSet resultSet = preparedStatement.executeQuery();
@@ -1101,7 +1101,7 @@ public class DatabaseService {
         queryStr = generateRegularQuery(tableNames, columnNames, filters, limit);
       }
 
-      System.out.println(queryStr);
+      // System.out.println(queryStr);
 
       PreparedStatement preparedStatement = connection.prepareStatement(queryStr);
       ResultSet resultSet = preparedStatement.executeQuery();
